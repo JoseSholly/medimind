@@ -5,7 +5,7 @@ from django.utils.translation import gettext as _
 from hospitals.models import Hospital
 
 from .field_choices import GENDER
-from .managers import CustomUserManager
+from .managers import CustomUserManager, TenantAwareManager
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -50,6 +50,8 @@ class Doctor(models.Model):
     age = models.PositiveIntegerField(null=True, blank=True) 
     gender = models.CharField(max_length=10, blank=True, choices=GENDER) 
 
+    objects = TenantAwareManager()
+
     def __str__(self):
         return f"Dr. {self.user.get_full_name()} - {self.specialization}"
     
@@ -61,3 +63,5 @@ class Patient(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER, blank=True)
     medical_history = models.TextField(blank=True)
     assigned_doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, null=True, related_name='patients', help_text=_("Doctor assigned to this patient."))
+
+    objects = TenantAwareManager()

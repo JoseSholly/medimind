@@ -45,9 +45,15 @@ class UserAdmin(BaseUserAdmin):
     ordering = ('email',)
     filter_horizontal = ('groups', 'user_permissions',)
 
+class TenantAwareAdmin(admin.ModelAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser or request.user.is_staff:
+            return qs
+        return qs.filter(user__hospital=request.user.hospital)
 
 @admin.register(Doctor)
-class DoctorAdmin(admin.ModelAdmin):
+class DoctorAdmin(TenantAwareAdmin):
     """
     Admin for the Doctor model.
     """
@@ -58,7 +64,7 @@ class DoctorAdmin(admin.ModelAdmin):
 
 
 @admin.register(Patient)
-class PatientAdmin(admin.ModelAdmin):
+class PatientAdmin(TenantAwareAdmin):
     """
     Admin for the Patient model.
     """
