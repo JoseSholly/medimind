@@ -48,6 +48,11 @@ INSTALLED_APPS = [
     'medications',
     'adherence',
     'notifications',
+
+    # third-party apps
+    'rest_framework',
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [
@@ -121,6 +126,35 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",  # Default permission
+    ),
+    "NON_FIELD_ERRORS_KEY": "error",
+    "EXCEPTION_HANDLER": "medimind.exception_handler.custom_exception_handler",
+    # "DEFAULT_THROTTLE_CLASSES": [
+    #     "rest_framework.throttling.AnonRateThrottle",  # For anonymous users
+    #     "rest_framework.throttling.UserRateThrottle",  # For authenticated users
+    # ],
+}
 
 
 # Internationalization
