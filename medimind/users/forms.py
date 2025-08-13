@@ -1,27 +1,43 @@
-from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import ReadOnlyPasswordHashField
 
-from .models import User
+User = get_user_model()
 
 
-class UserAdminCreationForm(UserCreationForm):
-    """
-    A custom form for creating new users in the admin.
-    It extends the standard UserCreationForm to handle the custom User model.
-    """
+class UserCreationForm(forms.ModelForm):
+    """A form for creating new users. Includes all the required fields, plus repeated password."""
+    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Confirm password', widget=forms.PasswordInput)
+
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name')
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # We need to make sure the password fields aren't required when creating a superuser
-        self.fields['password2'].required = False
+        fields = ('email', 'hospital', 'first_name', 'last_name')
 
-class UserAdminChangeForm(UserChangeForm):
-    """
-    A custom form for updating existing users in the admin.
-    It extends the standard UserChangeForm.
-    """
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords don't match")
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save()
+        return user
+
+
+class UserChangeForm(forms.ModelForm):
+    """A form for updating users. Includes all the fields on the user, but replaces the password field with admin's password hash display field."""
+    password = ReadOnlyPasswordHashField()
+
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'is_staff', 'is_active', 'is_superuser', 'is_activated')
+        fields = ('email', 'hospital', 'first_name', 'last_name', 'password', 'is_active', 'is_staff', 'is_activated')
+
+    def clean_password(self):
+        # Regardless of what the user provides, return the initial value.
+        return self.initial["password"]
+

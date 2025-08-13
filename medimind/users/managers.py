@@ -39,13 +39,19 @@ class TenantAwareManager(models.Manager):
         user = get_current_user()
         hospital = get_current_hospital()
 
-        if not user or not hospital:
-            # No user or tenant context, return empty queryset
+        if not user:
             return qs.none()
 
+        # Superusers and staff always see all data
         if user.is_superuser or user.is_staff:
-            # Admins see all data
             return qs
 
-        # Normal users see only their tenant's data
+        # If no hospital in context but user has one, use that
+        if not hospital and hasattr(user, 'hospital') and user.hospital:
+            hospital = user.hospital
+
+        # Still no hospital? deny access
+        if not hospital:
+            return qs.none()
+
         return qs.filter(user__hospital=hospital)
