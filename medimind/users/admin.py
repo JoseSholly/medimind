@@ -56,7 +56,7 @@ class UserAdmin(BaseUserAdmin):
 
 
     list_display = ('email', 'first_name', 'last_name', 'hospital', 'is_doctor','is_patient','is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active', 'hospital', )
+    list_filter = ('is_staff', 'is_active', 'hospital',)
     ordering = ('email',)
     search_fields = ('email', 'first_name', 'last_name', )
     inlines = (DoctorInline, PatientInline)
@@ -83,6 +83,8 @@ admin.site.register(User, UserAdmin)
 class DoctorAdmin(admin.ModelAdmin):
     list_display = ("doctor_id", "user", "specialization", "license_number", "hospital_name", "created_at")
     search_fields = ("doctor_id", "user__email", "license_number", "specialization")
+    ordering = ("-created_at",)
+    list_filter = ("specialization", "user__hospital", "created_at",)
 
     def hospital_name(self, obj):
         return obj.user.hospital.name if obj.user.hospital else "-"
