@@ -1,5 +1,8 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from .validators import validate_email_address
 
 User = get_user_model()
@@ -65,3 +68,52 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """
         return super().to_representation(instance)
 
+class EmailLoginSerializer(TokenObtainPairSerializer):
+    # override fields: use email instead of username
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+
+
+        errors = {}
+        if not email:
+            errors["email"] = ["This field is required."]
+        if not password:
+            errors["password"] = ["This field is required."]
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        # normalize email
+        email = email.lower()
+
+        # validate email format
+        try:
+            validate_email_address(email)
+        except DjangoValidationError:
+            raise serializers.ValidationError({"email": ["Enter a valid email address."]})
+
+        # check user exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"non_field_errors": ["Invalid credentials."]})
+
+        # check password
+        if not user.check_password(password):
+            raise serializers.ValidationError({"non_field_errors": ["Invalid credentials."]})
+
+
+        # generate tokens
+        refresh = self.get_token(user)
+
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+            },
+        }

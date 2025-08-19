@@ -6,8 +6,9 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status, views
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import UserRegistrationSerializer
+from .serializers import EmailLoginSerializer, UserRegistrationSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,61 @@ class UserSignUpView(views.APIView):
         return Response(
             {
                 "status": "error",
-                "message": "Validation failed",
+                "detail": "Validation failed",
                 "errors": serializer.errors,
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+    
+class EmailLoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    serializer_class = EmailLoginSerializer
+    http_method_names = ['post']
+
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = serializer.validated_data.get("user")
+            
+            # if user.is_activated is False:
+            #     return Response({
+            #         "status": "error",
+            #         "detail": "User account is not activated. Please contact support"
+            #     }, status=status.HTTP_403_FORBIDDEN)
+            
+            data = serializer.validated_data
+            return Response({
+                "status": "success",
+                "detail": "Login successful",
+                "user_data": {
+                    "id": user.get('id'),
+                },
+                "token": {
+                    "refresh": data.get("refresh"),
+                    "access": data.get("access"),
+                },
+            }, status=status.HTTP_200_OK)
+        
+        except serializers.ValidationError as e:
+            # Check if non_field_errors exist (invalid credentials)
+            non_field_errors = e.detail.get("non_field_errors")
+            if non_field_errors:
+                return Response({
+                    "status": "error",
+                    "detail": non_field_errors[0],
+                }, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Otherwise, field errors
+            return Response({
+                "status": "error",
+                "detail": "Validation error",
+                "errors": e.detail,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "detail": f"An unexpected error occurred: {str(e)}",
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
