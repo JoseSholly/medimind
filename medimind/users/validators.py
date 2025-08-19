@@ -1,4 +1,6 @@
 from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from django.utils.translation import gettext as _
 
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
@@ -24,4 +26,14 @@ def validate_gender(value):
                 _(f"{value} is not a valid choice."),
             )
     return value
+
+def validate_email_address(value):
+    """
+    Validates Email address
+    """
+    validator = EmailValidator()
+    try:
+        validator(value)
+    except DjangoValidationError:
+        raise ValidationError("Invalid email address format.")
     
