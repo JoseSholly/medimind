@@ -1,14 +1,16 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from hospitals.models import Hospital
 
-from .field_choices import GENDER
+from .field_choices import GENDER, SPECIALIZATION_CHOICES
 from .managers import CustomUserManager, TenantAwareManager
 from .mixins import TimestampMixin
 from .password_generator import IDGenerator
+from .validators import validate_gender, validate_specialization
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -21,7 +23,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     age = models.PositiveIntegerField(null=True, blank=True)
-    gender = models.CharField(max_length=10, blank=True, choices=GENDER)
+    gender = models.CharField(max_length=10, blank=True, choices=GENDER, validators=[validate_gender])
     
     date_joined = models.DateTimeField(default=timezone.now)
     is_active   = models.BooleanField(default=True)
@@ -37,7 +39,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     def __str__(self):
-        return self.email
+        return f"{self.email.split('@')[0]}-{self.hospital}"
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
@@ -54,6 +56,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         return hasattr(self, 'patient')
 
 class Doctor(TimestampMixin, models.Model):
+    hospital = models.ForeignKey(
+        Hospital,
+        on_delete=models.CASCADE,
+        related_name='doctors',
+        null=True,
+        blank=True,
+        verbose_name=_("Hospital"),
+        help_text=_("The hospital this doctor belongs to.")
+    )
     doctor_id = models.CharField(
         max_length=13,  # e.g. DOC-XXXXXXXX
         unique=True,
@@ -66,7 +77,12 @@ class Doctor(TimestampMixin, models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name='doctor'
     )
-    specialization = models.CharField(max_length=100, help_text=_("Specialization of the doctor."))
+    specialization = ArrayField(
+        models.CharField(max_length=100,choices=SPECIALIZATION_CHOICES, ),
+        blank=True, default=list,
+        help_text=_("List of specializations for the doctor. Use field choices from field_choices.py."), 
+        validators=[validate_specialization]
+    )
     license_number = models.CharField(
         max_length=100, unique=True,
         help_text=_("Unique license number of the doctor.")
@@ -81,7 +97,7 @@ class Doctor(TimestampMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.get_full_name()} - {self.specialization}"
+        return f"{self.user.get_full_name()} - {self.user.hospital}"
 
     def clean(self):
         super().clean()
@@ -95,6 +111,8 @@ class Doctor(TimestampMixin, models.Model):
 
     
     def save(self, *args, **kwargs):
+
+        self.hospital = self.user.hospital
         # Run model validation first (also runs field validators)
         self.full_clean()
 
@@ -131,6 +149,15 @@ class Doctor(TimestampMixin, models.Model):
 
 
 class Patient(TimestampMixin, models.Model):
+    hospital = models.ForeignKey(
+        Hospital,
+        on_delete=models.CASCADE,
+        related_name='hosiptal_patient',
+        null=True,
+        blank=True,
+        verbose_name=_("Hospital"),
+        help_text=_("The hospital this doctor belongs to.")
+    )
     patient_id = models.CharField(
         max_length=13,  # e.g. PAT-XXXXXXXX
         unique=True,
@@ -181,6 +208,7 @@ class Patient(TimestampMixin, models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        self.hospital = self.user.hospital
         # Run validations first
         self.full_clean()
 

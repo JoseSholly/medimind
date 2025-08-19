@@ -1,6 +1,11 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.utils.translation import gettext_lazy as _
+
+from .field_choices import SPECIALIZATION_CHOICES
+from .models import Doctor
+from .validators import validate_specialization
 
 User = get_user_model()
 
@@ -40,4 +45,27 @@ class UserChangeForm(forms.ModelForm):
     def clean_password(self):
         # Regardless of what the user provides, return the initial value.
         return self.initial["password"]
+    
 
+
+
+class DoctorForm(forms.ModelForm):
+    specialization = forms.MultipleChoiceField(
+        choices=SPECIALIZATION_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        help_text=_("Specializations associated with the doctor"),
+    )
+
+    class Meta:
+        model = Doctor
+        fields = [
+            "user",
+            "specialization",
+            "license_number",
+        ]
+
+    def clean_specialization(self):
+        specialization = self.cleaned_data.get("specialization", [])
+        validate_specialization(specialization)
+        return specialization

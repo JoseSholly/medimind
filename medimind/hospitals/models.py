@@ -32,7 +32,7 @@ class Hospital(TimestampMixin, models.Model):
                 self.hospital_id = IDGenerator.hospital_id()
                 try:
                     # force_insert=True tells Django to always create a new record
-                    super().save(force_insert=True, *args, **kwargs)
+                    super().save(*args, **kwargs)
                     return # Exit the function on success
                 except IntegrityError:
                     # If ID already exists, the loop continues to try a new ID
