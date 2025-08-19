@@ -2,6 +2,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status, views
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -16,7 +17,9 @@ User = get_user_model()
 class UserSignUpView(views.APIView):
     permission_classes = [AllowAny]
     serializer_class = UserRegistrationSerializer
+    http_method_names = ['post']
 
+    @swagger_auto_schema(request_body=UserRegistrationSerializer, tags=["SignUp"])
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
 
