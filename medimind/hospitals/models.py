@@ -1,10 +1,12 @@
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, models, transaction
 from django.utils.translation import gettext as _
 from users.mixins import TimestampMixin
 from users.password_generator import IDGenerator
 
-
+User = get_user_model()
 class Hospital(TimestampMixin, models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, default=None, related_name="hospital")
     hospital_id = models.CharField(
         max_length=14,  # HOSP- (5) + ID_LENGTH (8) + buffer (1)
         unique=True,

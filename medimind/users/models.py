@@ -4,7 +4,6 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from hospitals.models import Hospital
 
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
 from .managers import CustomUserManager, TenantAwareManager
@@ -14,12 +13,19 @@ from .validators import validate_gender, validate_specialization
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    USER_TYPES = (
+        ("patient", "Patient"),
+        ("doctor", "Doctor"),
+        ("hospital", "Hospital"),
+    )
+    user_type = models.CharField(
+        max_length=20,
+        choices=USER_TYPES,
+        default="patient",
+        help_text=_("Defines whether this user is a patient, doctor, or hospital."),
+    )
     username = None
     email = models.EmailField(unique=True)
-    hospital = models.ForeignKey(
-        Hospital, on_delete=models.CASCADE, null=True, blank=True,
-        related_name='hospital_users'
-    )
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     age = models.PositiveIntegerField(null=True, blank=True)
@@ -39,7 +45,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     def __str__(self):
-        return f"{self.email.split('@')[0]}-{self.hospital}"
+        return f"{self.email.split('@')[0]}"
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
@@ -57,7 +63,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Doctor(TimestampMixin, models.Model):
     hospital = models.ForeignKey(
-        Hospital,
+        "hospitals.Hospital",
         on_delete=models.CASCADE,
         related_name='doctors',
         null=True,
@@ -97,7 +103,7 @@ class Doctor(TimestampMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.get_full_name()} - {self.user.hospital}"
+        return f"Dr. {self.user.get_full_name()} -- {self.hospital}"
 
     def clean(self):
         super().clean()
@@ -105,14 +111,13 @@ class Doctor(TimestampMixin, models.Model):
         if not self.user_id:
             raise ValidationError(_("Doctor must be linked to a user."))
 
-        # Enforce that a doctor’s user has a hospital (for strict multi-tenancy)
-        if not self.user.hospital_id:
-            raise ValidationError(_("Doctor's user must belong to a hospital."))
+        if not self.hospital_id:
+            raise ValidationError(_("Doctor must belong to a hospital."))
 
     
     def save(self, *args, **kwargs):
 
-        self.hospital = self.user.hospital
+        self.user.user_type = "doctor"
         # Run model validation first (also runs field validators)
         self.full_clean()
 
@@ -150,7 +155,7 @@ class Doctor(TimestampMixin, models.Model):
 
 class Patient(TimestampMixin, models.Model):
     hospital = models.ForeignKey(
-        Hospital,
+        "hospitals.Hospital",
         on_delete=models.CASCADE,
         related_name='hosiptal_patient',
         null=True,
@@ -185,9 +190,10 @@ class Patient(TimestampMixin, models.Model):
         ]
 
     def __str__(self):
-        
-        return f"Patient: {self.user.get_full_name()} (ID: {self.patient_id or '—'})"
-
+        return f"Patient: {self.user.get_full_name()}--{self.hospital or '—'})"
+    
+    def get_full_name(self):
+        return self.user.get_full_name()
     
     def clean(self):
         super().clean()
@@ -195,20 +201,15 @@ class Patient(TimestampMixin, models.Model):
         if not self.user_id:
             raise ValidationError(_("Patient must be linked to a user."))
 
-        # Enforce that a patient's user has a hospital (for strict multi-tenancy)
-        if not self.user.hospital_id:
-            raise ValidationError(_("Patient's user must belong to a hospital."))
+        if not self.hospital_id:
+            raise ValidationError(_("Patient must belong to a hospital."))
 
-        # If assigned_doctor present, they must be from same hospital
-        if self.assigned_doctor_id:
-            doc_hospital_id = self.assigned_doctor.user.hospital_id
-            if doc_hospital_id != self.user.hospital_id:
-                raise ValidationError(
-                    _("Assigned doctor must belong to the same hospital as the patient.")
-                )
+        # If assigned doctor exists, enforce same hospital
+        if self.assigned_doctor_id and self.assigned_doctor.hospital_id != self.hospital_id:
+            raise ValidationError(_("Assigned doctor must belong to the same hospital as the patient."))
 
     def save(self, *args, **kwargs):
-        self.hospital = self.user.hospital
+        self.user.user_type = "patient"
         # Run validations first
         self.full_clean()
 

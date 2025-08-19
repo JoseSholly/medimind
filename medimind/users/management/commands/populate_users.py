@@ -8,10 +8,11 @@ from faker import Faker
 from users.field_choices import SPECIALIZATION_CHOICES
 
 fake = Faker()
+
 User = get_user_model()
-Doctor  = apps.get_model(model_name="Doctor", app_label="users")
-Patient = apps.get_model(model_name="Patient", app_label="users")
-Hospital = apps.get_model(model_name="Hospital", app_label="hospitals")
+Doctor = apps.get_model(app_label="users", model_name="Doctor")
+Patient = apps.get_model(app_label="users", model_name="Patient")
+Hospital = apps.get_model(app_label="hospitals", model_name="Hospital")
 
 
 class Command(BaseCommand):
@@ -21,72 +22,83 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.WARNING("Seeding hospitals, doctors, and patients..."))
 
-        # Clear old data (optional - be careful in production)
-        # Hospital.objects.all().delete()
-        # User.objects.all().delete()
-        # Doctor.objects.all().delete()
-        # Patient.objects.all().delete()
-
         specialization_keys = [spec[0] for spec in SPECIALIZATION_CHOICES]
 
         for _ in range(5):  # Create 5 hospitals
+            # 1. Create hospital user
+            hospital_user = User.objects.create_user(
+                email=fake.unique.email(),
+                password="password123",
+                user_type="hospital",
+                is_active=True,
+            )
+
+            # 2. Create Hospital profile
             hospital = Hospital.objects.create(
+                hospital_id=None,  # auto-generated
                 name=fake.unique.company() + " Hospital",
                 description=fake.text(max_nb_chars=200),
                 address=fake.address(),
-                contact_email=fake.unique.email(),
-                website_link=fake.url()
+                contact_email=hospital_user.email,
+                website_link=fake.url(),
+                user=hospital_user,   # <--- FK to User
             )
-            self.stdout.write(self.style.SUCCESS(f"Created hospital: {hospital.name} ({hospital.hospital_id})"))
 
-            for _ in range(3):  # 3 doctors per hospital
+            self.stdout.write(self.style.SUCCESS(f"🏥 Created hospital: {hospital.name} ({hospital.hospital_id})"))
+
+            # 3. Add doctors to hospital
+            for _ in range(3):
                 first_name = fake.first_name()
                 last_name = fake.last_name()
-                email = f"{first_name}{last_name}@gmail.com"
+                email = f"{first_name.lower()}.{last_name.lower()}@gmail.com"
 
-                doctor_user = User.objects.create(
+                doctor_user = User.objects.create_user(
                     email=email,
+                    password="password123",
                     first_name=first_name,
                     last_name=last_name,
-                    hospital=hospital,
-                    is_active=True
+                    user_type="doctor",
+                    is_active=True,
                 )
-                doctor_user.set_password("password123")
-                doctor_user.save()
 
-                # Pick at least 2 random specializations
+                # Pick random specializations (at least 2)
                 specializations = random.sample(specialization_keys, k=random.randint(2, 4))
 
                 doctor = Doctor.objects.create(
                     user=doctor_user,
+                    hospital=hospital,
                     specialization=specializations,
-                    license_number=fake.unique.bothify(text="LIC-#######")
-                )
-                self.stdout.write(
-                    self.style.NOTICE(f"  Added doctor: {doctor.user.get_full_name()} - {specializations}")
+                    license_number=fake.unique.bothify(text="LIC-#######"),
                 )
 
-                for _ in range(3):  # 3 patients per doctor
+                self.stdout.write(
+                    self.style.NOTICE(f"  ➕ Doctor: {doctor.user.get_full_name()} ({', '.join(specializations)})")
+                )
+
+                # 4. Add patients for doctor
+                for _ in range(3):
                     first_name = fake.first_name()
                     last_name = fake.last_name()
-                    email = f"{first_name}{last_name}@gmail.com"
-                    patient_user = User.objects.create(
+                    email = f"{first_name.lower()}.{last_name.lower()}@gmail.com"
+
+                    patient_user = User.objects.create_user(
                         email=email,
+                        password="password123",
                         first_name=first_name,
                         last_name=last_name,
-                        hospital=hospital,
-                        is_active=True
+                        user_type="patient",
+                        is_active=True,
                     )
-                    patient_user.set_password("password123")
-                    patient_user.save()
 
                     patient = Patient.objects.create(
                         user=patient_user,
+                        hospital=hospital,
                         assigned_doctor=doctor,
-                        medical_history=fake.text(max_nb_chars=200)
+                        medical_history=fake.text(max_nb_chars=200),
                     )
+
                     self.stdout.write(
-                        self.style.NOTICE(f"    Added patient: {patient.user.get_full_name()}")
+                        self.style.NOTICE(f"    👤 Patient: {patient.user.get_full_name()}")
                     )
 
         self.stdout.write(self.style.SUCCESS("✅ Seeding complete!"))
