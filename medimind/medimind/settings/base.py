@@ -11,26 +11,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
-from pathlib import Path
 
-from decouple import config
+from medimind.env import BASE_DIR
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-7h=$4_vo_lrgvm(q(k3f+3-1^bg)tmaiow7y*abgg8lbr8amcl'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
+BASE_DIR
 
 
 # Application definition
@@ -74,7 +58,9 @@ ROOT_URLCONF = 'medimind.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR, "templates"),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -92,25 +78,14 @@ WSGI_APPLICATION = 'medimind.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRESQL_DB_NAME"),
-        "USER": config("POSTGRESQL_DB_USER"),
-        "PASSWORD": config("POSTGRESQL_DB_PASSWORD"),
-        "HOST": config("POSTGRESQL_DB_HOST"),
-        "PORT": config("POSTGRESQL_DB_PORT"),
-        'CONN_MAX_AGE': 600,
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-    
 }
+
+
 
 AUTH_USER_MODEL = 'users.User'
 
