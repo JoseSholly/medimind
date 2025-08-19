@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
@@ -6,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
-from .managers import CustomUserManager, TenantAwareManager
+from .managers import CustomUserManager, OTPManager, TenantAwareManager
 from .mixins import TimestampMixin
 from .password_generator import IDGenerator
 from .validators import validate_gender, validate_specialization
@@ -236,3 +237,37 @@ class Patient(TimestampMixin, models.Model):
                     continue
                 # Unknown integrity issue
                 raise
+
+
+
+class OTP(models.Model):
+    PURPOSE_CHOICES = (
+        ("email_verification", "Email Verification"),
+        ("password_reset", "Password Reset"),
+        ("2fa", "Two-Factor Authentication"),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")
+    code = models.CharField(max_length=128)  # store hashed OTP
+    purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OTPManager()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "purpose"]),
+        ]
+        verbose_name = "OTP"
+
+    def is_expired(self, validity_minutes=10):
+        return timezone.now() > self.created_at + timezone.timedelta(minutes=validity_minutes)
+
+    def verify_otp(self, raw_code):
+        """
+        Verify OTP by checking hashed code.
+        """
+        return check_password(raw_code, self.code)
+
+    def __str__(self):
+        return f"OTP for {self.user.email} ({self.purpose})"

@@ -2,12 +2,11 @@ from django import forms
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.forms import ModelForm
 from hospitals.models import Hospital
 
 from .field_choices import SPECIALIZATION_CHOICES
 from .forms import DoctorForm, UserChangeForm, UserCreationForm
-from .models import Doctor, Patient
+from .models import OTP, Doctor, Patient
 
 User = get_user_model()
 
@@ -307,3 +306,15 @@ class HospitalAdmin(admin.ModelAdmin):
                 inline.parent_object = obj
         return inlines
     
+
+@admin.register(OTP)
+class OTPAdmin(admin.ModelAdmin):
+    list_display = ("user", "purpose", "created_at", "is_expired_display")
+    list_filter = ("purpose", "created_at")
+    search_fields = ("user__email", "user__username")
+    readonly_fields = ("created_at", "code")
+
+    def is_expired_display(self, obj):
+        return obj.is_expired()
+    is_expired_display.boolean = True
+    is_expired_display.short_description = "Expired?"

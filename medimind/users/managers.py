@@ -1,7 +1,12 @@
+import random
+
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 from django.core.exceptions import ValidationError
-from .middleware import get_current_hospital, get_current_user
 from django.db import models
+
+from .middleware import get_current_hospital, get_current_user
+
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -55,3 +60,19 @@ class TenantAwareManager(models.Manager):
             return qs.none()
 
         return qs.filter(user__hospital=hospital)
+    
+
+class OTPManager(models.Manager):
+    def create_otp(self, user, purpose, length=6):
+        """
+        Creates and stores a hashed OTP for the given user and purpose.
+        """
+        raw_code = "".join([str(random.randint(0, 9)) for _ in range(length)])  # numeric OTP
+        hashed_code = make_password(raw_code)
+
+        otp = self.create(
+            user=user,
+            code=hashed_code,
+            purpose=purpose,
+        )
+        return otp, raw_code
