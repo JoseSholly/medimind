@@ -49,24 +49,21 @@ class PatientInline(admin.StackedInline):
             return False
         return super().has_add_permission(request, obj)
     
-
-
-
-
 class UserAdmin(BaseUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
 
 
-    list_display = ('email', 'first_name', 'last_name', 'user_type',)
+    list_display = ('user_id','email', 'first_name', 'last_name', 'user_type',)
     list_filter = ('is_staff', 'is_active', 'user_type', )
     ordering = ('email',)
     search_fields = ('email', 'first_name', 'last_name', )
+    readonly_fields = ('user_id', )
     inlines = (DoctorInline, PatientInline)
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'age', 'gender',)}),
+        ('Personal info', {'fields': ('user_id','first_name', 'last_name', 'age', 'gender',)}),
         ('Permissions', {'fields': ('is_staff', 'is_active', 'is_activated', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )

@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
@@ -27,6 +29,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     username = None
     email = models.EmailField(unique=True)
+    user_id = models.UUIDField(
+        default = uuid.uuid4,
+        editable = False)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     age = models.PositiveIntegerField(null=True, blank=True)
@@ -44,6 +49,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user_id']),
+        ]
 
     def __str__(self):
         return f"{self.email.split('@')[0]}"
