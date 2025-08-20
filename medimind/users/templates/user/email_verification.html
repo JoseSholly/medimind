@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Medimind</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc;
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+        
+        .tagline {
+            color: #e0e7ff;
+            font-size: 14px;
+            margin: 8px 0 0 0;
+            font-weight: 400;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #4b5563;
+            margin: 0 0 30px 0;
+        }
+        
+        .otp-container {
+            background-color: #f1f5f9;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .otp-label {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+        
+        .otp-code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1d4ed8;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 4px;
+            margin: 0;
+            user-select: all;
+        }
+        
+        .instructions {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .instructions-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #92400e;
+            margin: 0 0 10px 0;
+        }
+        
+        .instructions-text {
+            font-size: 14px;
+            color: #78350f;
+            margin: 0;
+        }
+        
+        .security-note {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        
+        .security-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #dc2626;
+            margin: 0 0 8px 0;
+        }
+        
+        .security-text {
+            font-size: 13px;
+            color: #7f1d1d;
+            margin: 0;
+        }
+        
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 10px 0;
+        }
+        
+        .footer-link {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .otp-code {
+                font-size: 28px;
+                letter-spacing: 2px;
+            }
+            
+            .footer {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="logo">Medimind</h1>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="greeting">Verify Your Email Address</h2>
+            
+            <p class="message">
+                To complete your account setup and ensure the security of your healthcare data, please verify your email address using the verification code below.
+            </p>
+            
+            <!-- OTP Display -->
+            <div class="otp-container">
+                <p class="otp-label">Verification Code</p>
+                <p class="otp-code">{{ otp }}</p>
+            </div>
+            
+            <!-- Security Note -->
+            <div class="security-note">
+                <p class="security-title">🔒 Security Notice</p>
+                <p class="security-text">
+                    Never share this verification code with anyone. Medimind staff will never ask for your verification code via email or phone.
+                </p>
+            </div>
+            
+            <p class="message">
+                If you didn't request this verification, please ignore this email or contact our support team if you have concerns about your account security.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                This email was sent by Medimind Healthcare Platform<br>
+                Need help? <a href="mailto:support@medimind.com" class="footer-link">Contact Support</a>
+            </p>
+            <p class="footer-text">
+                © 2025 Medimind. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

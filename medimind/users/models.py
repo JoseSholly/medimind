@@ -14,13 +14,13 @@ from .mixins import TimestampMixin
 from .password_generator import IDGenerator
 from .validators import validate_gender, validate_specialization
 
-
-class User(AbstractBaseUser, PermissionsMixin):
-    USER_TYPES = (
-        ("patient", "Patient"),
-        ("doctor", "Doctor"),
-        ("hospital", "Hospital"),
+USER_TYPES = (
+        ("patient", _("Patient")),
+        ("doctor", _("Doctor")),
+        ("hospital", _("Hospital")),
+        ("admin", _("Admin")),
     )
+class User(AbstractBaseUser, PermissionsMixin):
     user_type = models.CharField(
         max_length=20,
         choices=USER_TYPES,
@@ -258,6 +258,12 @@ class OTP(models.Model):
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")
+    user_type = models.CharField(
+        max_length=20,
+        choices=USER_TYPES,
+        default="patient",
+        help_text=_("Defines whether this user is a patient, doctor, or hospital."),
+    )
     code = models.CharField(max_length=128)  # store hashed OTP
     purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)

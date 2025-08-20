@@ -63,7 +63,7 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('user_id','first_name', 'last_name', 'age', 'gender',)}),
+        ('Personal info', {'fields': ('user_id','first_name', 'last_name', 'age', 'gender', 'user_type', )}),
         ('Permissions', {'fields': ('is_staff', 'is_active', 'is_activated', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
@@ -306,10 +306,10 @@ class HospitalAdmin(admin.ModelAdmin):
 
 @admin.register(OTP)
 class OTPAdmin(admin.ModelAdmin):
-    list_display = ("user", "purpose", "created_at", "is_expired_display")
-    list_filter = ("purpose", "created_at")
+    list_display = ("user", "purpose", "user_type","created_at", "is_expired_display")
+    list_filter = ("purpose", "created_at", "user_type", )
     search_fields = ("user__email", "user__username")
-    readonly_fields = ("created_at", "code")
+    readonly_fields = ("user", "code", "purpose", "user_type","created_at", )
 
     def is_expired_display(self, obj):
         return obj.is_expired()

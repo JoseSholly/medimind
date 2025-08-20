@@ -7,13 +7,13 @@ from .validators import validate_email_address
 
 User = get_user_model()
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
-
+class BaseRegistrationSerializer(serializers.ModelSerializer):
     """
-    Serializer for user registration with password validation.
+    Base serializer for user registration.
+    Subclasses must define `user_type`.
     """
     email = serializers.CharField(
-        max_length=254, 
+        max_length=254,
         required=True
     )
     password = serializers.CharField(
@@ -28,45 +28,55 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ["email", "password"]
 
+    # Each child serializer should set this
+    user_type = None  
 
     def validate_email(self, value):
-        """
-        Check if email address is valid.
-        """
+        """Check if email address is valid."""
         try:
             validate_email_address(value)
         except serializers.ValidationError as e:
             raise serializers.ValidationError(str(e))
         return value
-    
+
     def validate(self, data):
-        """
-        Perform additional object-level validation if needed.
-        """
+        """Perform additional object-level validation if needed."""
         return data
-    
+
     def create(self, validated_data):
-        """
-        Create and return a new user instance.
-        """
+        """Create and return a new user instance with the correct user_type."""
+        if not self.user_type:
+            raise ValueError("user_type must be set in the subclass.")
+        
         user = User.objects.create_user(
             email=validated_data["email"],
             password=validated_data["password"],
+            user_type=self.user_type,
             is_activated=False,
         )
         return user
 
     def to_internal_value(self, data):
-        """
-        Process incoming data without custom error formatting.
-        """
+        """Process incoming data without custom error formatting."""
         return super().to_internal_value(data)
 
     def to_representation(self, instance):
-        """
-        Format successful responses without interfering with errors.
-        """
+        """Format successful responses without interfering with errors."""
         return super().to_representation(instance)
+
+
+# --- Specialized Serializers ---
+
+class PatientRegistrationSerializer(BaseRegistrationSerializer):
+    user_type = "patient"
+
+
+class DoctorRegistrationSerializer(BaseRegistrationSerializer):
+    user_type = "doctor"
+
+
+class HospitalRegistrationSerializer(BaseRegistrationSerializer):
+    user_type = "hospital"
 
 class EmailLoginSerializer(TokenObtainPairSerializer):
     # override fields: use email instead of username

@@ -63,7 +63,7 @@ class TenantAwareManager(models.Manager):
     
 
 class OTPManager(models.Manager):
-    def create_otp(self, user, purpose, length=6):
+    def create_otp(self, user, purpose, user_type, length=6,):
         """
         Creates and stores a hashed OTP for the given user and purpose.
         """
@@ -74,5 +74,6 @@ class OTPManager(models.Manager):
             user=user,
             code=hashed_code,
             purpose=purpose,
+            user_type=user_type,
         )
         return otp, raw_code
