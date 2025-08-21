@@ -1,12 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
-from .field_choices import SPECIALIZATION_CHOICES
 from hospitals.models import Hospital
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .exceptions import ExistingLicenseError, ExistingUserError
+from .exceptions import ExistingHospitalError, ExistingLicenseError, ExistingUserError
+from .field_choices import SPECIALIZATION_CHOICES
 from .models import Doctor, Patient
 from .validators import validate_email_address
 
@@ -290,8 +290,27 @@ class PatientOnboardingSerializer(serializers.ModelSerializer):
 class HospitalOnboardingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hospital
-        fields = ["hospital_name", "address", "registration_number"]
+        fields = [
+            "hospital_id",
+            "name",
+            "description",
+            "address",
+            "contact_email",
+            "website_link",
+        ]
+        read_only_fields = ["hospital_id"]
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        return Hospital.objects.create(user=user, **validated_data)
+        request = self.context["request"]
+        user = request.user
+
+        if not user.is_activated:  # Assuming you set this after OTP verification
+            raise serializers.ValidationError(
+                {"detail": "You must verify your account before creating a hospital."}
+            )
+
+        # Ensure a user doesn’t create more than one hospital
+        if hasattr(user, "hospital"):
+            raise ExistingHospitalError()
+        hospital = Hospital.objects.create(user=user, **validated_data)
+        return hospital

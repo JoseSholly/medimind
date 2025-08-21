@@ -4,7 +4,8 @@ from smtplib import SMTPException
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import serializers, status, views
+from hospitals.models import Hospital
+from rest_framework import generics, serializers, status, views
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -17,6 +18,7 @@ from .serializers import (
     DoctorOnboardingSerializer,
     DoctorRegistrationSerializer,
     EmailLoginSerializer,
+    HospitalOnboardingSerializer,
     HospitalRegistrationSerializer,
     OTPVerificationSerializer,
     PatientOnboardingSerializer,
@@ -515,3 +517,35 @@ class DoctorOnboardingAPIView(views.APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
+class HospitalOnboardingAPIView(generics.CreateAPIView):
+    queryset = Hospital.objects.all()
+    serializer_class = HospitalOnboardingSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(request_body=PatientRegistrationSerializer, tags=["Patient SignUp"])
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
+            return Response(
+                {
+                    "status": "conflict", 
+                    "errors": e.detail
+                    },
+                status=status.HTTP_409_CONFLICT
+            )
+
+        serializer.save()
+        data = serializer.data
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Hospital created successfully.",
+                "data": {
+                    "hospital_id": data.get("hospital_id", None)
+                }
+            },
+            status=status.HTTP_201_CREATED,
+        )

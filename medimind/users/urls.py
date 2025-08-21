@@ -4,6 +4,7 @@ from .views import (
     DoctorOnboardingAPIView,
     DoctorSignUpView,
     EmailLoginView,
+    HospitalOnboardingAPIView,
     HospitalSignUpView,
     PatientOnboardingView,
     PatientSignUpView,
@@ -16,6 +17,7 @@ urlpatterns = [
     path('v1/doctor/signup/', DoctorSignUpView.as_view(), name='doctor-signup'),
     path('v1/doctor/onboarding/', DoctorOnboardingAPIView.as_view(), name='doctor-onboarding'),
     path('v1/hospital/signup/', HospitalSignUpView.as_view(), name='hospital-signup'),
+    path('v1/hospital/onboarding/', HospitalOnboardingAPIView.as_view(), name='hospital-onboarding'),
     path('v1/user/otp/verify/', SignUpOTPverificationView.as_view(), name='user-otp-verify'),
     path('v1/user/login/', EmailLoginView.as_view(), name='signin'),
 ]

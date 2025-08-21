@@ -12,3 +12,9 @@ class ExistingLicenseError(APIException):
     default_detail = "Existing licence number."
     default_code = "conflict"
     default_code = "conflict"
+
+class ExistingHospitalError(APIException):
+    status_code = 409
+    default_detail = "Existing Hospital linked to user."
+    default_code = "conflict"
+    default_code = "conflict"
