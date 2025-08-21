@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Medimind - Your Prescription Adherence Journey Begins</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8fafc;
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+        
+        .tagline {
+            color: #e0e7ff;
+            font-size: 14px;
+            margin: 8px 0 0 0;
+            font-weight: 400;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #4b5563;
+            margin: 0 0 30px 0;
+        }
+        
+        .welcome-container {
+            background-color: #f0f9ff;
+            border: 2px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .welcome-icon {
+            font-size: 48px;
+            margin: 0 0 15px 0;
+        }
+        
+        .welcome-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0c4a6e;
+            margin: 0 0 10px 0;
+        }
+        
+        .welcome-text {
+            font-size: 16px;
+            color: #075985;
+            margin: 0;
+        }
+        
+        .features-section {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        
+        .features-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            margin: 0 0 15px 0;
+        }
+        
+        .feature-icon {
+            font-size: 20px;
+            margin: 0 12px 0 0;
+            flex-shrink: 0;
+        }
+        
+        .feature-text {
+            font-size: 14px;
+            color: #4b5563;
+            margin: 0;
+        }
+        
+        .cta-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .tips-section {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .tips-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #92400e;
+            margin: 0 0 10px 0;
+        }
+        
+        .tips-text {
+            font-size: 14px;
+            color: #78350f;
+            margin: 0;
+        }
+        
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 10px 0;
+        }
+        
+        .footer-link {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .welcome-container {
+                padding: 20px;
+            }
+            
+            .features-section {
+                padding: 20px;
+            }
+            
+            .cta-button {
+                padding: 14px 24px;
+                font-size: 15px;
+            }
+            
+            .footer {
+                padding: 20px;
+            }
+            
+            .feature-item {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .feature-icon {
+                margin: 0 0 8px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="logo">Medimind</h1>
+            <p class="tagline">Your Prescription Adherence Partner</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="greeting">Welcome to Your Health Journey! 🎉</h2>
+            
+            <p class="message">
+                Congratulations on taking the first step towards better medication management! We're thrilled to have you join the Medimind community, where staying on track with your prescriptions becomes effortless.
+            </p>
+            
+            <!-- Welcome Section -->
+            <div class="welcome-container">
+                <div class="welcome-icon">💊</div>
+                <h3 class="welcome-title">Your Prescription Adherence Journey Starts Now</h3>
+                <p class="welcome-text">
+                    Medimind is designed to help you never miss a dose, track your progress, and maintain optimal health through consistent medication adherence.
+                </p>
+            </div>
+            
+            <!-- Features Section -->
+            <div class="features-section">
+                <h3 class="features-title">What You Can Do with Medimind</h3>
+                
+                <div class="feature-item">
+                    <span class="feature-icon">⏰</span>
+                    <p class="feature-text"><strong>Smart Reminders:</strong> Get personalized medication reminders that fit your schedule and lifestyle.</p>
+                </div>
+                
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <p class="feature-text"><strong>Progress Tracking:</strong> Monitor your adherence rates and see how consistency improves your health outcomes.</p>
+                </div>
+            </div>
+            
+            <!-- Call to Action -->
+            <div class="cta-container">
+                <a href="{{ signin_url }}" class="cta-button">Start Your Journey →</a>
+            </div>
+            
+            <!-- Tips Section -->
+            <div class="tips-section">
+                <p class="tips-title">💡 Pro Tip for Success</p>
+                <p class="tips-text">
+                    Set up your medication schedule within the first 24 hours to maximize the benefits of our smart reminder system. The sooner you start, the better your adherence journey will be!
+                </p>
+            </div>
+            
+            <p class="message">
+                Remember, consistent medication adherence can improve treatment outcomes by up to 80%. We're here to support you every step of the way on your path to better health.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                Welcome to the Medimind family!<br>
+                Questions? <a href="mailto:support@medimind.com" class="footer-link">Contact our Support Team</a>
+            </p>
+            <p class="footer-text">
+                © {{ current_year }} Medimind. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

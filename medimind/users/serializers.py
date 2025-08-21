@@ -127,3 +127,32 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
                 "email": user.email,
             },
         }
+
+
+class OTPVerificationSerializer(serializers.Serializer):
+    otp = serializers.CharField(max_length=6, allow_null=False)
+    session_token = serializers.CharField(max_length=64, allow_null=False)
+
+    def validate(self, attrs):
+        """
+        Validate that otp and session_token are provided and valid.
+        """
+        otp = attrs.get("otp")
+        session_token = attrs.get("session_token")
+
+        if otp is None or session_token is None:
+            raise serializers.ValidationError({"OTP and session token are required."})
+
+        return attrs
+
+    def to_internal_value(self, data):
+        """
+        Process incoming data without custom error formatting.
+        """
+        return super().to_internal_value(data)
+
+    def to_representation(self, instance):
+        """
+        Format successful responses without interfering with errors.
+        """
+        return super().to_representation(instance)

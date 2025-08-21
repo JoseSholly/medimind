@@ -82,15 +82,15 @@ class OTPManager(models.Manager):
     
 
 class SessionTokenManager(models.Manager):
-    def create_token(self, user, purpose, expiry_minutes=10):
+    def create_token(self, user, purpose, expiry_hours=12):
         """
         Creates a new session token for the given user and purpose.
-        Defaults to 15 minutes expiry.
+        Defaults to 12 hours expiry.
         """
         # Invalidate old tokens for this user & purpose (optional, depending on business rules)
         self.filter(user=user, purpose=purpose, is_used=False).update(is_used=True)
 
-        expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
+        expires_at = timezone.now() + timedelta(hours=expiry_hours)
 
         token = self.create(
             user=user,
