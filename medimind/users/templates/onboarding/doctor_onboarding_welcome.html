@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Medimind - Doctor Account Created</title>
+    <style>
+        
+        .credentials-container {
+            background-color: #f1f5f9;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .credential-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .credential-row:last-child {
+            border-bottom: none;
+        }
+        
+        .credential-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .credential-value {
+            font-size: 16px;
+            color: #1d4ed8;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .hospital-info {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .hospital-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0c4a6e;
+            margin: 0 0 15px 0;
+        }
+        
+        .hospital-detail {
+            font-size: 14px;
+            color: #075985;
+            margin: 8px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .cta-button:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        }
+        
+        @media only screen and (max-width: 600px) {
+            
+            .credential-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="logo">Medimind</h1>
+            <p class="tagline">Your Healthcare Intelligence Platform</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="greeting">Welcome to Medimind, Doctor!</h2>
+            
+            <p class="message">
+                Your account has been successfully created by {{ hospital_name }}. You now have access to Medimind's comprehensive prescription adherence platform to help improve patient outcomes and streamline medication management.
+            </p>
+            
+            <!-- Login Credentials -->
+            <div class="credentials-container">
+                <div class="credential-row">
+                    <span class="credential-label">Doctor ID</span>
+                    <span class="credential-value">{{ doctor_id }}</span>
+                </div>
+                <div class="credential-row">
+                    <span class="credential-label">Email</span>
+                    <span class="credential-value">{{ user_email }}</span>
+                </div>
+                <div class="credential-row">
+                    <span class="credential-label">Temporary Password</span>
+                    <span class="credential-value">{{ user_password }}</span>
+                </div>
+                <div class="credential-row">
+                    <span class="credential-label">Hospital ID</span>
+                    <span class="credential-value">{{ hospital_id }}</span>
+                </div>
+            </div>
+            
+            <!-- Hospital Information -->
+            <div class="hospital-info">
+                <p class="hospital-title">Your Hospital Information</p>
+                <p class="hospital-detail"><strong>Hospital:</strong> {{ hospital_name }}</p>
+                <p class="hospital-detail"><strong>Contact Email:</strong> {{ hospital_contact_email }}</p>
+                <p class="hospital-detail"><strong>Address:</strong> {{ hospital_address }}</p>
+            </div>
+            
+            <!-- Call to Action -->
+            <div style="text-align: center;">
+                <a href="{{ signin_url }}" class="cta-button">Sign In to Your Account</a>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="instructions">
+                <p class="instructions-title">Getting Started:</p>
+                <p class="instructions-text">
+                    1. Sign in using your email and temporary password<br>
+                    2. Update your password for security<br>
+                    3. Complete your profile setup<br>
+                    4. Start managing patient prescriptions and adherence tracking
+                </p>
+            </div>
+            
+            <!-- Security Note -->
+            <div class="security-note">
+                <p class="security-title">🔒 Security Notice</p>
+                <p class="security-text">
+                    Please change your temporary password immediately after your first login. Keep your credentials secure and never share them with unauthorized personnel.
+                </p>
+            </div>
+            
+            <p class="message">
+                If you have any questions about your account or need assistance, please contact your hospital administrator at {{ hospital_contact_email }} or our support team.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                This email was sent by Medimind Healthcare Platform<br>
+                Need help? <a href="mailto:support@medimind.com" class="footer-link">Contact Support</a>
+            </p>
+            <p class="footer-text">
+                © {{ current_year }} Medimind. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

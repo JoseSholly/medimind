@@ -6,13 +6,15 @@ from django.db import IntegrityError, transaction
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status, views
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import OTP, SessionToken
+from .permissions import IsHospital
 from .serializers import (
+    DoctorOnboardingSerializer,
     DoctorRegistrationSerializer,
     EmailLoginSerializer,
     HospitalRegistrationSerializer,
@@ -20,7 +22,11 @@ from .serializers import (
     PatientOnboardingSerializer,
     PatientRegistrationSerializer,
 )
-from .utils import send_email_verification_otp, send_onboarding_welcome
+from .utils import (
+    send_doctor_onboarding_welcome,
+    send_email_verification_otp,
+    send_onboarding_welcome,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -439,4 +445,73 @@ class PatientOnboardingView(views.APIView):
             )
 
 
+class DoctorOnboardingAPIView(views.APIView):
+    permission_classes = [IsAuthenticated, IsHospital, IsAdminUser]
+    http_method_names = ['post']
 
+    @swagger_auto_schema(request_body=DoctorOnboardingSerializer, tags=["Doctor SignUp"])
+    def post(self, request, *args, **kwargs):
+
+        serializer = DoctorOnboardingSerializer(data=request.data, context={"request": request})
+
+        try:
+            with transaction.atomic():
+                serializer.is_valid(raise_exception=True)
+                doctor = serializer.save()
+
+            doctor_id = doctor.doctor_id
+            hospital_id = doctor.hospital.hospital_id
+            response_data = {
+                "doctor_id": doctor_id,
+                "hospital_id": hospital_id
+            }
+
+            if hasattr(doctor, "_raw_password"):
+                user_password = doctor._raw_password
+            
+            user_email= doctor.user.email
+            hospital_name = doctor.hospital.name
+            hospital_contact_email = doctor.hospital.contact_email
+            hospital_address = doctor.hospital.address
+
+            send_doctor_onboarding_welcome(doctor_id,hospital_name, hospital_id, user_email, user_password, hospital_contact_email, hospital_address)
+            
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Doctor profile created successful",
+                    "data": response_data
+                }, status=status.HTTP_201_CREATED)
+        
+        
+        except serializers.ValidationError as e:
+            # Make a mutable copy of the error detail
+            error_detail = e.detail.copy()
+
+            # Check if a specialization error exists and is a dictionary
+            if 'specialization' in error_detail and isinstance(error_detail['specialization'], dict):
+                specialization_errors = []
+                # Iterate over the values of the specialization dictionary
+                for error_list in error_detail['specialization'].values():
+                    # Extend the new list with each error message
+                    specialization_errors.extend(error_list)
+                
+                # Replace the original specialization error with the new list
+                error_detail['specialization'] = specialization_errors
+
+            return Response({
+                "status": "error",
+                "detail": error_detail
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        except SMTPException as e:
+                logger.error(f"Failed to onboarding {request.user.email}: {str(e)}")
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Failed to send onboarding mail",
+                        "errors": {"email": ["Unable to send mail. Please try again later."]}
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            

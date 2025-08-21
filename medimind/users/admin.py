@@ -56,7 +56,7 @@ class UserAdmin(BaseUserAdmin):
 
     list_display = ('user_id','email', 'first_name', 'last_name', 'user_type',)
     list_filter = ('is_staff', 'is_active', 'user_type', )
-    ordering = ('email',)
+    ordering = ('-date_joined',)
     search_fields = ('email', 'first_name', 'last_name', )
     readonly_fields = ('user_id', )
     inlines = (DoctorInline, PatientInline)

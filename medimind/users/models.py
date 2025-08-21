@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from .exceptions import ExistingLicenseError
 
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
 from .managers import CustomUserManager, OTPManager, TenantAwareManager, SessionTokenManager
@@ -77,6 +78,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_patient(self):
         return hasattr(self, 'patient')
+    
+    @property
+    def is_hospital(self):
+        return hasattr(self, 'hospital')
 
 class Doctor(TimestampMixin, models.Model):
     hospital = models.ForeignKey(
@@ -108,6 +113,8 @@ class Doctor(TimestampMixin, models.Model):
     )
     license_number = models.CharField(
         max_length=100, unique=True,
+        null=True,
+        blank=True,
         help_text=_("Unique license number of the doctor.")
     )
 
@@ -130,6 +137,7 @@ class Doctor(TimestampMixin, models.Model):
 
         if not self.hospital_id:
             raise ValidationError(_("Doctor must belong to a hospital."))
+        
 
     
     def save(self, *args, **kwargs):
@@ -164,7 +172,7 @@ class Doctor(TimestampMixin, models.Model):
                     continue
                 # If license_number collided, surface clearly
                 if collided_license:
-                    raise ValidationError(_("License number already exists.")) from e
+                    raise ExistingLicenseError()
                 # Unknown integrity issue
                 raise
 
@@ -257,8 +265,6 @@ class Patient(TimestampMixin, models.Model):
 
 
 class OTP(models.Model):
-    
-
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")
     user_type = models.CharField(
         max_length=20,

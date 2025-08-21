@@ -56,7 +56,43 @@ def send_onboarding_welcome(email):
     }
     return send_email(
         subject="Welcome to NuwellAI!",
-        template_name="user/onboarding_welcome.html",
+        template_name="onboarding/onboarding_welcome.html",
         recipient_list=[email],
+        context=context,
+    )
+
+def send_doctor_onboarding_welcome(
+        doctor_id, 
+        hospital_name, 
+        hospital_id, 
+        user_email, 
+        user_password, 
+        hospital_contact_email, 
+        hospital_address,
+    ):
+    """
+    Sends onboarding welcome email to a new doctor.
+    """
+    domain_name = config("DOMAIN_NAME", cast=str)
+    subject = f"Welcome to {hospital_name} - Your Onboarding Details"
+    template_name = "onboarding/doctor_onboarding_welcome.html"  
+
+    context = {
+        "doctor_id": doctor_id,
+        "hospital_name": hospital_name,
+        "hospital_id": hospital_id,
+        "user_email": user_email,
+        "user_password": user_password,
+        "hospital_contact_email": hospital_contact_email,
+        "hospital_address": hospital_address,
+        "signin_url": f"{domain_name}/sign-in/"
+    }
+
+    recipient_list = [user_email]
+
+    send_email(
+        subject=subject,
+        template_name=template_name,
+        recipient_list=recipient_list,
         context=context,
     )

@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, IntegrityError
 from django.utils import timezone
 
 from .middleware import get_current_hospital, get_current_user
@@ -21,6 +21,8 @@ class CustomUserManager(BaseUserManager):
             user.set_password(password)
             user.save(using=self._db)
             return user
+        except IntegrityError as e:
+            raise IntegrityError(str(e))
         except ValidationError as e:
             raise ValidationError(str(e))
 

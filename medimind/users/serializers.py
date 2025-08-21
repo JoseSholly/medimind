@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
+from .field_choices import SPECIALIZATION_CHOICES
 from hospitals.models import Hospital
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .exceptions import ExistingLicenseError, ExistingUserError
 from .models import Doctor, Patient
 from .validators import validate_email_address
 
@@ -162,13 +164,78 @@ class OTPVerificationSerializer(serializers.Serializer):
 
 
 class DoctorOnboardingSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(write_only=True, required=True)
+    first_name = serializers.CharField(write_only=True, required=True)
+    last_name = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=False, min_length=8)
+    specialization = serializers.ListField(
+        child=serializers.ChoiceField(choices=SPECIALIZATION_CHOICES)
+    )
+    license_number = serializers.CharField(write_only=True, required=True)
+
     class Meta:
         model = Doctor
-        fields = ["specialization", "license_number", "years_of_experience", "hospital_affiliation"]
+        fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "specialization",
+            "license_number",
+        ]
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            # Raise your custom exception instead of a generic ValidationError
+            raise ExistingUserError()
+        return value
+    def validate(self, attrs):
+
+        license_number = attrs.get("license_number")
+        if Doctor.objects.filter(license_number=license_number).exists():
+            raise ExistingLicenseError()
+        return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        return Doctor.objects.create(user=user, **validated_data)
+        request = self.context["request"]
+        hospital = getattr(request.user, "hospital", None)  
+
+        email = validated_data.pop("email")
+        first_name = validated_data.pop("first_name")
+        last_name = validated_data.pop("last_name")
+        password = validated_data.pop("password", None)
+
+        # create the User account for the doctor
+        
+        user = User.objects.create_user(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            password=password or User.objects.make_random_password(),
+            user_type="doctor",  # if you have a role field
+        )
+
+        # create the Doctor profile
+        doctor = Doctor.objects.create(
+            user=user,
+            hospital=hospital,
+            **validated_data,
+        )
+
+        # store credentials for email later
+        doctor._raw_password = password  # attach to object, can be used in view
+        return doctor
+    
+    def to_internal_value(self, data):
+        """
+        Process incoming data without custom error formatting.
+        """
+        return super().to_internal_value(data)
+
+    def to_representation(self, instance):
+        """
+        Format successful responses without interfering with errors.
+        """
+        return super().to_representation(instance)
 
 class PatientOnboardingSerializer(serializers.ModelSerializer):
     # User-related fields
