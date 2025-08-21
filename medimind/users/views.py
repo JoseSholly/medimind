@@ -2,10 +2,11 @@ import logging
 from smtplib import SMTPException
 
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status, views
-from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -16,6 +17,7 @@ from .serializers import (
     EmailLoginSerializer,
     HospitalRegistrationSerializer,
     OTPVerificationSerializer,
+    PatientOnboardingSerializer,
     PatientRegistrationSerializer,
 )
 from .utils import send_email_verification_otp, send_onboarding_welcome
@@ -394,3 +396,47 @@ class SignUpOTPverificationView(views.APIView):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+class PatientOnboardingView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = PatientRegistrationSerializer
+    http_method_names = ['post']
+
+    @swagger_auto_schema(request_body=PatientRegistrationSerializer, tags=["Patient SignUp"])
+    def post(self, request, *args, **kwargs):
+
+        serializer = PatientOnboardingSerializer(
+            data=request.data, 
+            context={"request": request}
+        )
+
+            
+        try:
+            serializer.is_valid(raise_exception=True)
+            patient = serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Patient onboarding successful",
+                    "data": {
+                        "patient_id": patient.patient_id,
+                        "hospital": patient.hospital.hospital_id if patient.hospital else None
+                    }
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except ValidationError as e:
+            error_detail = e.detail
+            # If it's the "already exists" case → return 409
+            if "patient" in error_detail.get("detail", "") or "already" in str(error_detail):
+                return Response(error_detail, status=status.HTTP_409_CONFLICT)
+            return Response(error_detail, status=status.HTTP_400_BAD_REQUEST)
+        
+        except IntegrityError:
+            return Response(
+                {"detail": "User already has a patient profile."},
+                status=status.HTTP_409_CONFLICT
+            )
+
+
+

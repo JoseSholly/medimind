@@ -194,7 +194,7 @@ class Patient(TimestampMixin, models.Model):
     )
     medical_history = models.TextField(blank=True)
     assigned_doctor = models.ForeignKey(
-        Doctor, on_delete=models.SET_NULL, null=True, blank=False,
+        Doctor, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='patients',
         help_text=_("Doctor assigned to this patient.")
     )

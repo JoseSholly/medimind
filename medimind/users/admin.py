@@ -191,7 +191,7 @@ class PatientAdmin(admin.ModelAdmin):
     readonly_fields = ("patient_id", "user")
 
     fieldsets = (
-        ('Personal Info', {'fields': ('patient_id', "medical_history",'user',"hospital", "assigned_doctor", )}),
+        ('Personal Info', {'fields': ("user","patient_id", "medical_history","hospital", "assigned_doctor", )}),
     )
 
     def hospital_name(self, obj):
@@ -292,7 +292,6 @@ class HospitalDoctorInline(admin.StackedInline):
 @admin.register(Hospital)
 class HospitalAdmin(admin.ModelAdmin):
     list_display = ['hospital_id','user__email', 'name', 'contact_email', 'website_link']
-    readonly_fields = ("user",)
     search_fields = ['name']
     inlines = [HospitalDoctorInline, HospitalPatientInline]
 

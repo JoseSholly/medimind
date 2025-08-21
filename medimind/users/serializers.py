@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
+from hospitals.models import Hospital
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .models import Doctor, Patient
 from .validators import validate_email_address
 
 User = get_user_model()
@@ -156,3 +159,72 @@ class OTPVerificationSerializer(serializers.Serializer):
         Format successful responses without interfering with errors.
         """
         return super().to_representation(instance)
+
+
+class DoctorOnboardingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Doctor
+        fields = ["specialization", "license_number", "years_of_experience", "hospital_affiliation"]
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        return Doctor.objects.create(user=user, **validated_data)
+
+class PatientOnboardingSerializer(serializers.ModelSerializer):
+    # User-related fields
+    first_name = serializers.CharField(write_only=True)
+    last_name = serializers.CharField(write_only=True)
+    age = serializers.IntegerField(write_only=True)
+    gender = serializers.ChoiceField(choices=[("male", "Male"), ("female", "Female")], write_only=True)
+
+    # Patient-related fields
+    hospital_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    medical_history = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = Patient
+        fields = [
+            "first_name", "last_name", "age", "gender",
+            "hospital_id", "medical_history"
+        ]
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        hospital_id = validated_data.pop("hospital_id", None)
+
+        # Update the user's fields
+        user.first_name = validated_data.get("first_name")
+        user.last_name = validated_data.get("last_name")
+        user.age = validated_data.get("age")
+        user.gender = validated_data.get("gender")
+        user.save()
+
+        # Find hospital if hospital_id is provided
+        hospital = None
+        if hospital_id:
+            hospital = Hospital.objects.filter(hospital_id=hospital_id).first()
+            if not hospital:
+                raise serializers.ValidationError({"hospital_id": "Invalid hospital ID."})
+
+        # Create patient profile
+        try:
+            patient = Patient.objects.create(
+                user=user,
+                hospital=hospital,
+                medical_history=validated_data.get("medical_history", ""),
+                assigned_doctor=None,  # assigned later by hospital
+            )
+        except IntegrityError:
+            raise IntegrityError("User already has a patient profile.")
+        
+        return patient
+
+
+class HospitalOnboardingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Hospital
+        fields = ["hospital_name", "address", "registration_number"]
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        return Hospital.objects.create(user=user, **validated_data)

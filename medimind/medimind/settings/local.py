@@ -1,6 +1,10 @@
-from .base import *
-from decouple import config
 import os
+from datetime import timedelta
+
+from decouple import config
+
+from .base import *
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -38,6 +42,14 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),]
+
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours = 6),  # How long an access token is valid
+    "REFRESH_TOKEN_LIFETIME": timedelta(days= 7), 
+    "ROTATE_REFRESH_TOKENS": True,  # Whether to issue a new refresh token during refresh
+    "BLACKLIST_AFTER_ROTATION": True,  # Whether to blacklist old refresh tokens
+}
 
 
 
