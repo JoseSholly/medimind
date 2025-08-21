@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
-from .managers import CustomUserManager, OTPManager, TenantAwareManager
+from .managers import CustomUserManager, OTPManager, TenantAwareManager, SessionTokenManager
 from .mixins import TimestampMixin
 from .password_generator import IDGenerator
 from .validators import validate_gender, validate_specialization
@@ -19,6 +19,12 @@ USER_TYPES = (
         ("doctor", _("Doctor")),
         ("hospital", _("Hospital")),
         ("admin", _("Admin")),
+    )
+
+PURPOSE_CHOICES = (
+        ("email_verification", "Email Verification"),
+        ("password_reset", "Password Reset"),
+        ("2fa", "Two-Factor Authentication"),
     )
 class User(AbstractBaseUser, PermissionsMixin):
     user_type = models.CharField(
@@ -251,11 +257,7 @@ class Patient(TimestampMixin, models.Model):
 
 
 class OTP(models.Model):
-    PURPOSE_CHOICES = (
-        ("email_verification", "Email Verification"),
-        ("password_reset", "Password Reset"),
-        ("2fa", "Two-Factor Authentication"),
-    )
+    
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otps")
     user_type = models.CharField(
@@ -287,3 +289,30 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.email} ({self.purpose})"
+
+
+class SessionToken(TimestampMixin, models.Model):
+    """
+    Stores a temporary session token that authorizes user.
+    This token is single-use and time-limited.
+    """
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE)
+    token = models.UUIDField(
+        default = uuid.uuid1,
+        editable = False,
+        unique=True)
+    purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES)
+    expires_at = models.DateTimeField(default=None)
+    is_used = models.BooleanField(default=False)
+
+    objects = SessionTokenManager()
+
+    def is_valid(self):
+        """Checks if the session token is still valid (not expired and not yet used)."""
+        return not self.is_used and self.expires_at > timezone.now()
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"Session for {self.user.email} - {str(self.token)[:10]}..."

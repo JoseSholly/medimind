@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import OTP
+from .models import OTP, SessionToken
 from .serializers import (
     DoctorRegistrationSerializer,
     EmailLoginSerializer,
@@ -53,7 +53,9 @@ class PatientSignUpView(views.APIView):
 
                 # Create OTP for email verification
                 _, raw_code = OTP.objects.create_otp(user=user, purpose="email_verification", user_type="patient")
-            
+
+                # Create session token
+                session_token = SessionToken.objects.create_token(user, purpose="email_verification", expiry_minutes=10)
             # Send OTP via email
             try:
                 send_email_verification_otp(email=user.email, otp=raw_code)
@@ -72,6 +74,7 @@ class PatientSignUpView(views.APIView):
                     "status": "success",
                     "data": {
                         "user_id": user.user_id,
+                        "session_token": session_token.token
                     },
                 },
                 status=status.HTTP_201_CREATED,
@@ -117,7 +120,9 @@ class DoctorSignUpView(views.APIView):
 
                 # Create OTP for email verification
                 _, raw_code = OTP.objects.create_otp(user=user, purpose="email_verification", user_type="doctor")
-            
+
+                # Create session token
+                session_token = SessionToken.objects.create_token(user, purpose="email_verification", expiry_minutes=10)
             # Send OTP via email
             try:
                 send_email_verification_otp(email=user.email, otp=raw_code)
@@ -136,6 +141,7 @@ class DoctorSignUpView(views.APIView):
                     "status": "success",
                     "data": {
                         "user_id": user.user_id,
+                        "session_token": session_token.token,
                     },
                 },
                 status=status.HTTP_201_CREATED,
@@ -180,6 +186,9 @@ class HospitalSignUpView(views.APIView):
 
                 # Create OTP for email verification
                 _, raw_code = OTP.objects.create_otp(user=user, purpose="email_verification", user_type="hospital")
+
+                # Create session token
+                session_token = SessionToken.objects.create_token(user, purpose="email_verification", expiry_minutes=10)
             
             # Send OTP via email
             try:
@@ -199,6 +208,7 @@ class HospitalSignUpView(views.APIView):
                     "status": "success",
                     "data": {
                         "user_id": user.user_id,
+                        "session_token": session_token.token,
                     },
                 },
                 status=status.HTTP_201_CREATED,

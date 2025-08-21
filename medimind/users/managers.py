@@ -1,9 +1,11 @@
 import random
+from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from .middleware import get_current_hospital, get_current_user
 
@@ -77,3 +79,22 @@ class OTPManager(models.Manager):
             user_type=user_type,
         )
         return otp, raw_code
+    
+
+class SessionTokenManager(models.Manager):
+    def create_token(self, user, purpose, expiry_minutes=10):
+        """
+        Creates a new session token for the given user and purpose.
+        Defaults to 15 minutes expiry.
+        """
+        # Invalidate old tokens for this user & purpose (optional, depending on business rules)
+        self.filter(user=user, purpose=purpose, is_used=False).update(is_used=True)
+
+        expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
+
+        token = self.create(
+            user=user,
+            purpose=purpose,
+            expires_at=expires_at,
+        )
+        return token

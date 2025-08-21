@@ -6,7 +6,7 @@ from hospitals.models import Hospital
 
 from .field_choices import SPECIALIZATION_CHOICES
 from .forms import DoctorForm, UserChangeForm, UserCreationForm
-from .models import OTP, Doctor, Patient
+from .models import OTP, Doctor, Patient, SessionToken
 
 User = get_user_model()
 
@@ -308,10 +308,26 @@ class HospitalAdmin(admin.ModelAdmin):
 class OTPAdmin(admin.ModelAdmin):
     list_display = ("user", "purpose", "user_type","created_at", "is_expired_display")
     list_filter = ("purpose", "created_at", "user_type", )
-    search_fields = ("user__email", "user__username")
+    search_fields = ("user__email",)
     readonly_fields = ("user", "code", "purpose", "user_type","created_at", )
 
     def is_expired_display(self, obj):
         return obj.is_expired()
     is_expired_display.boolean = True
     is_expired_display.short_description = "Expired?"
+
+
+
+@admin.register(SessionToken)
+class SessionToken(admin.ModelAdmin):
+    list_display = ("user", "purpose", "is_used", "is_expired_display", "expires_at", )
+    list_filter = ("user", "is_used", "purpose", )
+    search_fields = ("user__email", )
+
+    readonly_fields = ("user", "token" , "purpose", "is_used", "expires_at", )
+
+    def is_expired_display(self, obj):
+        return obj.is_expired()
+    is_expired_display.boolean = True
+    is_expired_display.short_description = "Expired?"
+    
