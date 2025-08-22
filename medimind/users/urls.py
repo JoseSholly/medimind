@@ -6,6 +6,7 @@ from .views import (
     EmailLoginView,
     HospitalOnboardingAPIView,
     HospitalSignUpView,
+    LogoutAPIView,
     PatientOnboardingView,
     PatientSignUpView,
     SignUpOTPverificationView,
@@ -20,4 +21,5 @@ urlpatterns = [
     path('v1/hospital/onboarding/', HospitalOnboardingAPIView.as_view(), name='hospital-onboarding'),
     path('v1/user/otp/verify/', SignUpOTPverificationView.as_view(), name='user-otp-verify'),
     path('v1/user/login/', EmailLoginView.as_view(), name='signin'),
+    path('v1/user/logout/', LogoutAPIView.as_view(), name='logout'),
 ]

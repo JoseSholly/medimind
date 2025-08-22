@@ -13,13 +13,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import OTP, SessionToken
-from .permissions import IsHospital
+from .permissions import IsActivated, IsHospital
 from .serializers import (
     DoctorOnboardingSerializer,
     DoctorRegistrationSerializer,
     EmailLoginSerializer,
     HospitalOnboardingSerializer,
     HospitalRegistrationSerializer,
+    LogOutSerializer,
     OTPVerificationSerializer,
     PatientOnboardingSerializer,
     PatientRegistrationSerializer,
@@ -239,7 +240,7 @@ class EmailLoginView(TokenObtainPairView):
     serializer_class = EmailLoginSerializer
     http_method_names = ['post']
 
-
+    @swagger_auto_schema(request_body=EmailLoginSerializer, tags=["Login"])
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         try:
@@ -291,6 +292,26 @@ class EmailLoginView(TokenObtainPairView):
                 "detail": f"An unexpected error occurred: {str(e)}",
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+class LogoutAPIView(views.APIView):
+    permission_classes = [IsAuthenticated, IsActivated]
+    serializer_class = LogOutSerializer
+
+    @swagger_auto_schema(request_body=LogOutSerializer, tags=["Logout"])
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Invalidate the refresh token
+            return Response(
+                {"status": "success", "message": "Logout successful", "data": None},
+                status=status.HTTP_200_OK,
+            )
+        except Exception:
+            return Response(
+                {"status": "error", "message": "Logout failed", "data": None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class SignUpOTPverificationView(views.APIView):
@@ -522,7 +543,7 @@ class HospitalOnboardingAPIView(generics.CreateAPIView):
     serializer_class = HospitalOnboardingSerializer
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(request_body=PatientRegistrationSerializer, tags=["Patient SignUp"])
+    @swagger_auto_schema(request_body=PatientRegistrationSerializer, tags=["Hospital SignUp"])
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         try:

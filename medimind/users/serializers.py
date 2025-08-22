@@ -132,7 +132,8 @@ class EmailLoginSerializer(TokenObtainPairSerializer):
                 "email": user.email,
             },
         }
-
+class LogOutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
 
 class OTPVerificationSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6, allow_null=False)
@@ -314,3 +315,4 @@ class HospitalOnboardingSerializer(serializers.ModelSerializer):
             raise ExistingHospitalError()
         hospital = Hospital.objects.create(user=user, **validated_data)
         return hospital
+
