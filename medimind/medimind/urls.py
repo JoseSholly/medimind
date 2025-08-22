@@ -21,11 +21,7 @@ from django.urls import include, path
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -44,6 +40,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('users.urls')), 
+    path('api/', include('hospitals.urls')), 
     # Documentation
     path(
         "",
