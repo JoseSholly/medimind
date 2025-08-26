@@ -10,7 +10,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .exceptions import ExistingHospitalError, ExistingLicenseError, ExistingUserError
 from .field_choices import SPECIALIZATION_CHOICES
-from .models import Doctor, Patient, SessionToken, OTP
+from .models import OTP, Doctor, Patient, SessionToken
 from .validators import validate_email_address
 
 User = get_user_model()
@@ -443,4 +443,69 @@ class HospitalOnboardingSerializer(serializers.ModelSerializer):
             raise ExistingHospitalError()
         hospital = Hospital.objects.create(user=user, **validated_data)
         return hospital
+    
 
+class UserInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email", "first_name", "last_name", "age", "gender"]
+class AssignedDoctorSerializer(serializers.ModelSerializer):
+    user = UserInfoSerializer(read_only=True)
+    class Meta:
+        model = Doctor
+        fields = ["doctor_id", "user","specialization", "license_number"]
+
+class HospitalDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Hospital
+        fields = ["hospital_id", "name", "description", "address"]
+        ref_name = "Hospitals.HospitalDetailSerializer"
+
+class PatientProfileUpdateSerializer(serializers.ModelSerializer):
+    patient_id = serializers.ReadOnlyField()
+    email = serializers.EmailField(source="user.email" ,read_only=True)
+    first_name = serializers.CharField(source="user.first_name", required=False)
+    last_name = serializers.CharField(source="user.last_name", required=False)
+    age = serializers.IntegerField(source="user.age", required=False)
+    gender = serializers.CharField(source="user.gender", required=False)
+    hospital =HospitalDetailSerializer(read_only=True)
+    assigned_doctor = AssignedDoctorSerializer(read_only=True)
+
+
+    class Meta:
+        model = Patient
+        fields = [
+            "email", "patient_id" ,"first_name", "last_name", "age", "gender", "medical_history", "hospital", "assigned_doctor"
+        ]
+        
+
+    def update(self, instance, validated_data):
+        # pop nested user data
+        user_data = validated_data.pop("user", {})
+        for attr, value in user_data.items():
+            setattr(instance.user, attr, value)
+        instance.user.save()
+
+        # update patient fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+    def to_representation(self, instance):
+        """
+        Format successful responses without interfering with errors.
+        """
+        representation = super().to_representation(instance)
+
+        assigned_doctor = representation.get("assigned_doctor")
+        if assigned_doctor and "user" in assigned_doctor:
+            user_data = assigned_doctor.pop("user", {})
+            # Merge doctor_id and user fields
+            assigned_doctor.update(user_data)
+            representation["assigned_doctor"] = assigned_doctor
+
+        return representation
+
+    
+        

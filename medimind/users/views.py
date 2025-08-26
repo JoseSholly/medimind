@@ -26,6 +26,7 @@ from .serializers import (
     PasswordResetOTPResendSerializer,
     PasswordResetRequestSerializer,
     PatientOnboardingSerializer,
+    PatientProfileUpdateSerializer,
     PatientRegistrationSerializer,
     SignUpOTPResendSerializer,
 )
@@ -829,3 +830,11 @@ class HospitalOnboardingAPIView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
+    
+class PatientProfileUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = PatientProfileUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        # Ensure only patient updates their own profile
+        return self.request.user.patient
