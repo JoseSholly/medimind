@@ -48,6 +48,15 @@ def send_email_verification_otp(email, otp):
     )
 
 
+def send_password_reset_otp(email, otp):
+    return send_email(
+        subject="Password Reset",
+        template_name="user/password_reset.html",
+        recipient_list=[email],
+        context={"otp": otp},
+    )
+
+
 def send_onboarding_welcome(email):
     domain_name = config("DOMAIN_NAME", cast=str)
     context = {

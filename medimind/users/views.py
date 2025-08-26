@@ -22,6 +22,9 @@ from .serializers import (
     HospitalRegistrationSerializer,
     LogOutSerializer,
     OTPVerificationSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetOTPResendSerializer,
+    PasswordResetRequestSerializer,
     PatientOnboardingSerializer,
     PatientRegistrationSerializer,
     SignUpOTPResendSerializer,
@@ -30,6 +33,7 @@ from .utils import (
     send_doctor_onboarding_welcome,
     send_email_verification_otp,
     send_onboarding_welcome,
+    send_password_reset_otp,
 )
 
 logger = logging.getLogger(__name__)
@@ -319,14 +323,17 @@ class SignUpOTPverificationView(views.APIView):
     serializer_class = OTPVerificationSerializer
     permission_classes = [AllowAny]
 
-    @swagger_auto_schema(request_body=OTPVerificationSerializer, tags=["SignUp OTP Verify"])
+    @swagger_auto_schema(
+            request_body=OTPVerificationSerializer, 
+            tags=["SignUp OTP"], operation_description="Verify sign up OTP"
+            )
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             otp = serializer.validated_data["otp"]
             session_token = serializer.validated_data["session_token"]
 
-        # Validate session token and associated user
+            # Validate session token and associated user
             token = SessionToken.objects.filter(
                 token=session_token,
                 is_used=False
@@ -431,6 +438,7 @@ class SignUpOTPResendView(views.APIView):
     permission_classes = [AllowAny]
     serializer_class = SignUpOTPResendSerializer
 
+    @swagger_auto_schema(tags=["SignUp OTP"], operation_description="Request for new OTP")
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
@@ -488,19 +496,19 @@ class SignUpOTPResendView(views.APIView):
             # Create OTP for email verification
             _, raw_code = OTP.objects.create_otp(user=user, purpose="email_verification", user_type=user.user_type)
 
-            # Send the new OTP via email
-            try:
-                send_email_verification_otp(email=user.email, otp=raw_code)
-            except SMTPException as e:
-                logger.error(f"Failed to send email verification OTP to {user.email} (user_id: {user.id}): {str(e)}")
-                return Response(
-                    {
-                        "status": "error",
-                        "message": "Failed to send OTP",
-                        "errors": {"email": ["Unable to send OTP. Please try again later."]}
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+        # Send the new OTP via email
+        try:
+            send_email_verification_otp(email=user.email, otp=raw_code)
+        except SMTPException as e:
+            logger.error(f"Failed to send email verification OTP to {user.email} (user_id: {user.id}): {str(e)}")
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Failed to send OTP",
+                    "errors": {"email": ["Unable to send OTP. Please try again later."]}
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
             {
@@ -510,8 +518,172 @@ class SignUpOTPResendView(views.APIView):
             status=status.HTTP_200_OK,
         )
 
-        
+class PasswordResetRequestView(views.APIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
+    http_method_names = ["post"]
 
+    @swagger_auto_schema(tags=["Password Reset"], operation_description="Request password reset")
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            email = serializer.validated_data["email"]
+            user = User.objects.get(email=email)
+
+            # Check if user is activated
+            if not user.is_activated:
+                return Response({
+                    "detail": "User account is not activated.",
+                    "errors": {"email": "Please activate your account before resetting the password."}
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            with transaction.atomic():
+                # Clear all existing otp related password_reset associated with user
+                OTP.objects.filter(user=user, purpose='password_reset', user_type=user.user_type).delete()
+
+                # Create OTP for email verification
+                _, raw_code = OTP.objects.create_otp(user=user, purpose="password_reset", user_type=user.user_type)
+
+                # Create session token
+                session_token = SessionToken.objects.create_token(user, purpose="password_reset")
+
+            # Send the new OTP via email
+            try:
+                send_password_reset_otp(email=user.email, otp=raw_code)
+            except SMTPException as e:
+                logger.error(f"Failed to send Password Reset OTP to {user.email} (user_id: {user.id}): {str(e)}")
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Failed to send OTP",
+                        "errors": {"email": ["Unable to send OTP. Please try again later."]}
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            return Response({
+                "detail": "Password Reset OTP sent successfully to your email.",
+                "data": {
+                    "session_token": session_token.token
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({
+                "detail": "User not found",
+                "errors": {"email": "No user found with this email address."}
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Password reset request failed for {request.data.get('email')}: {str(e)}")
+            return Response({
+                "detail": "Server error",
+                "errors": {"general": "An unexpected error occurred. Please try again later."}
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PasswordResetOTPResendView(views.APIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetOTPResendSerializer
+
+    @swagger_auto_schema(tags=["Password Reset"], operation_description="Request for Password Reset OTP")
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        try: 
+            serializer.is_valid(raise_exception=True)    
+            session_token = serializer.validated_data["session_token"]
+
+            # Get session token and associated user
+            token = SessionToken.objects.filter(
+                token = session_token,
+                purpose = "password_reset",
+                is_used=False
+            ).first()
+            if not token or token.is_expired():
+                logger.error(f"Invalid or expired session token: {session_token[:10]}...")
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Session failed",
+                        "errors": {"session_token": ["Invalid session token."]}
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            user = token.user
+
+            # Validate if user exists and is not activated
+            if not user:
+                return Response(
+                    {
+                        "detail": "User not found for this session.",
+                        "errors": {"user": ["No user associated with this session token."]}
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            
+            # Generate new token
+            with transaction.atomic():
+                # Clear all existing otp related email_verification associated with user
+                OTP.objects.filter(user=user, purpose='password_reset', user_type=user.user_type).delete()
+
+                # Create OTP for email verification
+                _, raw_code = OTP.objects.create_otp(user=user, purpose="password_reset", user_type=user.user_type)
+
+            # Send the new OTP via email
+            try:
+                send_password_reset_otp(email=user.email, otp=raw_code)
+            except SMTPException as e:
+                logger.error(f"Failed to send Password Reset OTP to {user.email} (user_id: {user.id}): {str(e)}")
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Failed to send OTP",
+                        "errors": {"email": ["Unable to send OTP. Please try again later."]}
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            return Response(
+                {
+                    "status": "success",
+                    "message": "New OTP sent successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        except serializers.ValidationError as e:
+            # error = e.detail.get("session_to")
+            return Response({
+                "status": "error",
+                "detail": "Validation error",
+                "errors": e.detail,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_password = serializer.validated_data["new_password"]
+        session_token = serializer.validated_data["session"]
+        otp_obj = serializer.validated_data["otp"]
+
+        
+        user = session_token.user
+        # user_user_type = user.user_type
+        user.set_password(new_password)
+        user.save()
+
+        session_token.is_used = True
+        session_token.save(update_fields=["is_used"])
+
+        otp_obj.delete()
+
+        return Response(
+            {"detail": "Password reset successful."}, 
+            status=status.HTTP_200_OK
+            )
 class PatientOnboardingView(views.APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PatientRegistrationSerializer

@@ -1,5 +1,8 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from django.db import IntegrityError
 from hospitals.models import Hospital
 from rest_framework import serializers
@@ -7,7 +10,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .exceptions import ExistingHospitalError, ExistingLicenseError, ExistingUserError
 from .field_choices import SPECIALIZATION_CHOICES
-from .models import Doctor, Patient, SessionToken
+from .models import Doctor, Patient, SessionToken, OTP
 from .validators import validate_email_address
 
 User = get_user_model()
@@ -166,8 +169,25 @@ class OTPVerificationSerializer(serializers.Serializer):
 
 
 class BaseOTPResendSerializer(serializers.Serializer):
-    session_token = serializers.CharField(max_length=64, allow_null=False)
+    session_token = serializers.CharField(
+        max_length=64, 
+        required=True,
+        help_text="A valid session token is required to proceed."
+)
     purpose = None
+
+    def validate_session_token(self, value):
+        # Validate session token
+        token = SessionToken.objects.filter(
+            token=value,
+            purpose=self.purpose,
+            is_used=False
+        ).first()
+        if not token or token.is_expired():
+            raise serializers.ValidationError("Invalid or expired session token.")
+        
+        return value
+
 
     def validate(self, attrs):
         """
@@ -176,20 +196,7 @@ class BaseOTPResendSerializer(serializers.Serializer):
         session_token = attrs.get("session_token")
 
         if session_token is None:
-            raise serializers.ValidationError({
-                "non_field_errors": ["Session token is required."]
-            })
-
-        # Validate session token
-        token = SessionToken.objects.filter(
-            token=session_token,
-            purpose=self.purpose,
-            is_used=False
-        ).first()
-        if not token or token.is_expired():
-            raise serializers.ValidationError({
-                "session_token": ["Invalid or expired session token."]
-            })
+            raise serializers.ValidationError("Session token is required.")
 
         return attrs
 
@@ -208,6 +215,83 @@ class BaseOTPResendSerializer(serializers.Serializer):
 class SignUpOTPResendSerializer(BaseOTPResendSerializer):
     purpose = "email_verification"
 
+
+class PasswordResetOTPResendSerializer(BaseOTPResendSerializer):
+    purpose = "password_reset"
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(validators=[EmailValidator(message="Invalid email format.")])
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    session_token = serializers.CharField(
+        max_length=64, 
+        required=True,
+        help_text="A valid session token is required to proceed."
+        )
+    otp = serializers.CharField(
+        required=True,
+        max_length=6, 
+        min_length=6)
+    new_password = serializers.CharField(
+        required=True,
+        min_length=8)
+
+    def validate_session_token(self, value):
+        try:
+            session = SessionToken.objects.get(token=value, purpose="password_reset")
+            if not session.is_valid():
+                raise serializers.ValidationError("Invalid or expored session token")
+        except SessionToken.DoesNotExist:
+            raise serializers.ValidationError("Invalid session token")
+        return value
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must contain only digits.")
+        return value
+
+    def validate_new_password(self, value):
+        if not re.search(r"[A-Z]", value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        if not re.search(r"[a-z]", value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        if not re.search(r"[0-9]", value):
+            raise serializers.ValidationError("Password must contain at least one digit.")
+        # if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
+        #     raise serializers.ValidationError("Password must contain at least one special character.")
+        return value
+    
+    def validate(self, attrs):
+        session_token_value = attrs.get("session_token")
+        otp_value = attrs.get("otp")
+
+        try:
+            session = SessionToken.objects.get(token=session_token_value, purpose="password_reset")
+        except SessionToken.DoesNotExist:
+            raise serializers.ValidationError({"session_token": "Invalid session token."})
+
+        if not session.is_valid():
+            raise serializers.ValidationError({"session_token": "Session token is invalid or expired."})
+
+        # Find OTP
+        otp_obj = OTP.objects.filter(user=session.user, purpose=session.purpose).order_by("-created_at").first()
+        if not otp_obj:
+            raise serializers.ValidationError({"otp": "No OTP found for this session."})
+
+        if otp_obj.is_expired():
+            raise serializers.ValidationError({"otp": "OTP has expired."})
+
+        if not otp_obj.verify_otp(otp_value):
+            raise serializers.ValidationError({"otp": "Invalid OTP."})
+
+        # attach for view use
+        attrs["session"] = session
+        attrs["otp"] = otp_obj
+
+        return attrs
+
+    
 class DoctorOnboardingSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=True)
     first_name = serializers.CharField(write_only=True, required=True)
