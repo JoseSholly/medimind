@@ -661,6 +661,7 @@ class PasswordResetConfirmView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
 
+    @swagger_auto_schema(tags=["Password Reset"], operation_description="Confirm Password Reset OTP")
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
