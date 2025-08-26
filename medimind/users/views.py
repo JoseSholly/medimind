@@ -7,7 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from hospitals.models import Hospital
 from rest_framework import generics, serializers, status, views
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -24,6 +24,7 @@ from .serializers import (
     OTPVerificationSerializer,
     PatientOnboardingSerializer,
     PatientRegistrationSerializer,
+    SignUpOTPResendSerializer,
 )
 from .utils import (
     send_doctor_onboarding_welcome,
@@ -425,6 +426,91 @@ class SignUpOTPverificationView(views.APIView):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+    
+class SignUpOTPResendView(views.APIView):
+    permission_classes = [AllowAny]
+    serializer_class = SignUpOTPResendSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "detail": "Invalid input.",
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        session_token = serializer.validated_data["session_token"]
+
+        # Get session token and associated user
+        token = SessionToken.objects.filter(
+            token = session_token,
+            purpose = "email_verification",
+            is_used=False
+        ).first()
+        if not token or token.is_expired():
+            logger.error(f"Invalid or expired session token: {session_token[:10]}...")
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Session failed",
+                    "errors": {"session_token": ["Invalid session token."]}
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Check if user is already activated
+        user = token.user
+        if user.is_activated:
+            return Response(
+                {
+                    "detail": "Activated user account",
+                    "errors": {"account": ["Account is already activated."]}
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Validate if user exists and is not activated
+        if not user:
+            return Response(
+                {
+                    "detail": "User not found for this session.",
+                    "errors": {"user": ["No user associated with this session token."]}
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        
+        # Generate new token
+        with transaction.atomic():
+            # Clear all existing otp related email_verification associated with user
+            OTP.objects.filter(user=user, purpose='email_verification', user_type=user.user_type).delete()
+
+            # Create OTP for email verification
+            _, raw_code = OTP.objects.create_otp(user=user, purpose="email_verification", user_type=user.user_type)
+
+            # Send the new OTP via email
+            try:
+                send_email_verification_otp(email=user.email, otp=raw_code)
+            except SMTPException as e:
+                logger.error(f"Failed to send email verification OTP to {user.email} (user_id: {user.id}): {str(e)}")
+                return Response(
+                    {
+                        "status": "error",
+                        "message": "Failed to send OTP",
+                        "errors": {"email": ["Unable to send OTP. Please try again later."]}
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        return Response(
+            {
+                "status": "success",
+                "message": "New OTP sent successfully.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+        
 
 class PatientOnboardingView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -469,7 +555,7 @@ class PatientOnboardingView(views.APIView):
 
 
 class DoctorOnboardingAPIView(views.APIView):
-    permission_classes = [IsAuthenticated, IsHospital, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsHospital]
     http_method_names = ['post']
 
     @swagger_auto_schema(request_body=DoctorOnboardingSerializer, tags=["Doctor SignUp"])
@@ -502,7 +588,7 @@ class DoctorOnboardingAPIView(views.APIView):
             return Response(
                 {
                     "status": "success",
-                    "message": "Doctor profile created successful",
+                    "message": "Doctor profile created successful and creds sent to user email",
                     "data": response_data
                 }, status=status.HTTP_201_CREATED)
         

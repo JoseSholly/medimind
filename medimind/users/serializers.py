@@ -7,7 +7,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .exceptions import ExistingHospitalError, ExistingLicenseError, ExistingUserError
 from .field_choices import SPECIALIZATION_CHOICES
-from .models import Doctor, Patient
+from .models import Doctor, Patient, SessionToken
 from .validators import validate_email_address
 
 User = get_user_model()
@@ -163,6 +163,50 @@ class OTPVerificationSerializer(serializers.Serializer):
         """
         return super().to_representation(instance)
 
+
+
+class BaseOTPResendSerializer(serializers.Serializer):
+    session_token = serializers.CharField(max_length=64, allow_null=False)
+    purpose = None
+
+    def validate(self, attrs):
+        """
+        Validate that session_token is provided and valid.
+        """
+        session_token = attrs.get("session_token")
+
+        if session_token is None:
+            raise serializers.ValidationError({
+                "non_field_errors": ["Session token is required."]
+            })
+
+        # Validate session token
+        token = SessionToken.objects.filter(
+            token=session_token,
+            purpose=self.purpose,
+            is_used=False
+        ).first()
+        if not token or token.is_expired():
+            raise serializers.ValidationError({
+                "session_token": ["Invalid or expired session token."]
+            })
+
+        return attrs
+
+    def to_internal_value(self, data):
+        """
+        Process incoming data without custom error formatting.
+        """
+        return super().to_internal_value(data)
+
+    def to_representation(self, instance):
+        """
+        Format successful responses without interfering with errors.
+        """
+        return super().to_representation(instance)
+
+class SignUpOTPResendSerializer(BaseOTPResendSerializer):
+    purpose = "email_verification"
 
 class DoctorOnboardingSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True, required=True)
