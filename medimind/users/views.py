@@ -439,7 +439,7 @@ class SignUpOTPResendView(views.APIView):
     permission_classes = [AllowAny]
     serializer_class = SignUpOTPResendSerializer
 
-    @swagger_auto_schema(tags=["SignUp OTP"], operation_description="Request for new OTP")
+    @swagger_auto_schema(request_body=SignUpOTPResendSerializer, ags=["SignUp OTP"], operation_description="Request for new OTP")
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
