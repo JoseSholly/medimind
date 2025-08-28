@@ -524,7 +524,7 @@ class PasswordResetRequestView(views.APIView):
     serializer_class = PasswordResetRequestSerializer
     http_method_names = ["post"]
 
-    @swagger_auto_schema(tags=["Password Reset"], operation_description="Request password reset")
+    @swagger_auto_schema(request_body=PasswordResetRequestSerializer,tags=["Password Reset"], operation_description="Request password reset")
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         try:
@@ -586,7 +586,7 @@ class PasswordResetOTPResendView(views.APIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetOTPResendSerializer
 
-    @swagger_auto_schema(tags=["Password Reset"], operation_description="Request for Password Reset OTP")
+    @swagger_auto_schema(request_body=PasswordResetOTPResendSerializer, tags=["Password Reset"], operation_description="Request for Password Reset OTP")
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         try: 
@@ -662,7 +662,7 @@ class PasswordResetConfirmView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
 
-    @swagger_auto_schema(tags=["Password Reset"], operation_description="Confirm Password Reset OTP")
+    @swagger_auto_schema(request_body=PasswordResetConfirmSerializer,tags=["Password Reset"], operation_description="Confirm Password Reset OTP")
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -688,13 +688,13 @@ class PasswordResetConfirmView(generics.GenericAPIView):
             )
 class PatientOnboardingView(views.APIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = PatientRegistrationSerializer
+    serializer_class = PatientOnboardingSerializer
     http_method_names = ['post']
 
-    @swagger_auto_schema(request_body=PatientRegistrationSerializer, tags=["Patient SignUp"])
+    @swagger_auto_schema(request_body=PatientOnboardingSerializer, tags=["Patient SignUp"])
     def post(self, request, *args, **kwargs):
 
-        serializer = PatientOnboardingSerializer(
+        serializer = self.serializer_class(
             data=request.data, 
             context={"request": request}
         )
@@ -803,7 +803,7 @@ class HospitalOnboardingAPIView(generics.CreateAPIView):
     serializer_class = HospitalOnboardingSerializer
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(request_body=PatientRegistrationSerializer, tags=["Hospital SignUp"])
+    @swagger_auto_schema(request_body=HospitalOnboardingSerializer, tags=["Hospital SignUp"])
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         try:
