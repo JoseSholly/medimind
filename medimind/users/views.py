@@ -709,7 +709,7 @@ class PatientOnboardingView(views.APIView):
                     "message": "Patient onboarding successful",
                     "data": {
                         "patient_id": patient.patient_id,
-                        "hospital": patient.hospital.hospital_id if patient.hospital else None
+                        "hospital_id": patient.hospital.hospital_id if patient.hospital else None
                     }
                 },
                 status=status.HTTP_201_CREATED

@@ -375,7 +375,7 @@ class PatientOnboardingSerializer(serializers.ModelSerializer):
 
     # Patient-related fields
     hospital_id = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True)
-    medical_history = serializers.CharField(required=False, allow_blank=True)
+    medical_history = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Patient
@@ -401,12 +401,18 @@ class PatientOnboardingSerializer(serializers.ModelSerializer):
             hospital = Hospital.objects.filter(hospital_id=hospital_id).first()
             if not hospital:
                 raise serializers.ValidationError({"hospital_id": "Invalid hospital ID."})
+        else: 
+            # If no hospital_id provided, randomly assign a hospital
+            hospital = Hospital.objects.order_by('?').first()
+            if not hospital:
+                raise serializers.ValidationError({"hospital_id": "No hospitals available to assign."})
+
 
         # Create patient profile
         try:
             patient = Patient.objects.create(
                 user=user,
-                hospital=hospital,
+                hospital=hospital if hospital else None,
                 medical_history=validated_data.get("medical_history", ""),
                 assigned_doctor=None,  # assigned later by hospital
             )
