@@ -9,7 +9,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .exceptions import ExistingHospitalError, ExistingLicenseError, ExistingUserError
-from .field_choices import SPECIALIZATION_CHOICES, GENDER
+from .field_choices import GENDER, SPECIALIZATION_CHOICES
 from .models import OTP, Doctor, Patient, SessionToken
 from .validators import validate_email_address
 
@@ -540,13 +540,13 @@ class DoctorProfileDetailSerializer(serializers.ModelSerializer):
     )
     license_number = serializers.CharField(required=False)
     hospital = HospitalDetailSerializer(read_only=True)
-    patients = DoctorPatientListSerializer(many=True, read_only=True)
+    # patients = DoctorPatientListSerializer(many=True, read_only=True)
 
     class Meta:
         model = Doctor
         fields = [
             "email", "doctor_id", "first_name", "last_name", "age", "gender",
-            "specialization", "hospital", "license_number", "patients"
+            "specialization", "hospital", "license_number",
         ]
 
 class DoctorProfileUpdateSerializer(serializers.ModelSerializer):
