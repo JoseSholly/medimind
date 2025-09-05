@@ -248,29 +248,29 @@ class HospitalPatientInlineForm(forms.ModelForm):
 
 class HospitalPatientInline(admin.TabularInline):
     model = Patient
-    form = HospitalPatientInlineForm
+    # form = HospitalPatientInlineForm
     extra = 0
     fields = ('user', 'assigned_doctor', 'medical_history')
-    readonly_fields = ('medical_history',)
+    readonly_fields = ('user', 'medical_history',)
 
 
-    def get_formset(self, request, obj=None, **kwargs):
-        FormSet = super().get_formset(request, obj, **kwargs)
-        class FormSetWrapper(FormSet):
-            def __init__(self, *args, **kwargs):
-                kwargs['form_kwargs'] = {'hospital': obj}
-                super().__init__(*args, **kwargs)
-        return FormSetWrapper
+    # def get_formset(self, request, obj=None, **kwargs):
+    #     FormSet = super().get_formset(request, obj, **kwargs)
+    #     class FormSetWrapper(FormSet):
+    #         def __init__(self, *args, **kwargs):
+    #             kwargs['form_kwargs'] = {'hospital': obj}
+    #             super().__init__(*args, **kwargs)
+    #     return FormSetWrapper
 
 
 
 
 class HospitalDoctorInline(admin.StackedInline):
     model = Doctor
-    form = HospitalDoctorInlineForm
+    # form = HospitalDoctorInlineForm
     extra = 0
     fields = ('user', 'list_specializations', 'license_number')
-    readonly_fields = ('license_number', 'specialization', 'list_specializations')
+    readonly_fields = ('user', 'license_number', 'specialization', 'list_specializations')
 
     def list_specializations(self, obj):
         choices_dict = dict(SPECIALIZATION_CHOICES)
@@ -278,13 +278,13 @@ class HospitalDoctorInline(admin.StackedInline):
         return ", ".join(specialization_names)
     list_specializations.short_description = 'Specialization'
 
-    def get_formset(self, request, obj=None, **kwargs):
-        FormSet = super().get_formset(request, obj, **kwargs)
-        class FormSetWrapper(FormSet):
-            def __init__(self, *args, **kwargs):
-                kwargs['form_kwargs'] = {'hospital': obj}
-                super().__init__(*args, **kwargs)
-        return FormSetWrapper
+    # def get_formset(self, request, obj=None, **kwargs):
+    #     FormSet = super().get_formset(request, obj, **kwargs)
+    #     class FormSetWrapper(FormSet):
+    #         def __init__(self, *args, **kwargs):
+    #             kwargs['form_kwargs'] = {'hospital': obj}
+    #             super().__init__(*args, **kwargs)
+    #     return FormSetWrapper
 
     # formset = HospitalDoctorInlineFormSet  # (include your formset filter if used)
 
