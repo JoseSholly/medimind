@@ -31,6 +31,7 @@ class Command(BaseCommand):
                 password="password123",
                 user_type="hospital",
                 is_active=True,
+                is_activated=True,
             )
 
             # 2. Create Hospital profile

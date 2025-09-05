@@ -14,12 +14,14 @@ from .views import (  # DoctorSignUpView,
     PatientSignUpView,
     SignUpOTPResendView,
     SignUpOTPverificationView,
+    DoctorProfileUpdateView,
 )
 
 urlpatterns = [
     path('v1/patient/signup/', PatientSignUpView.as_view(), name='patient-signup'),
     path('v1/patient/onboarding/', PatientOnboardingView.as_view(), name='patient-onboarding'),
     path("v1/patient/profile/", PatientProfileUpdateView.as_view(), name="patient-profile-update"),
+    path("v1/doctor/profile/", DoctorProfileUpdateView.as_view(), name="patient-doctor-update"),
     # path('v1/doctor/signup/', DoctorSignUpView.as_view(), name='doctor-signup'),
     path('v1/doctor/onboarding/', DoctorOnboardingAPIView.as_view(), name='doctor-onboarding'),
     path('v1/hospital/signup/', HospitalSignUpView.as_view(), name='hospital-signup'),

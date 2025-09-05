@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 from django.core.exceptions import ValidationError
-from django.db import models, IntegrityError
+from django.db import IntegrityError, models
 from django.utils import timezone
 
 from .middleware import get_current_hospital, get_current_user
@@ -48,22 +48,17 @@ class TenantAwareManager(models.Manager):
         user = get_current_user()
         hospital = get_current_hospital()
 
-        if not user:
-            return qs.none()
+        if user is None and hospital is None:
+            return qs  
 
         # Superusers and staff always see all data
-        if user.is_superuser or user.is_staff:
+        if user and (user.is_superuser or user.is_staff):
             return qs
 
-        # If no hospital in context but user has one, use that
-        if not hospital and hasattr(user, 'hospital') and user.hospital:
-            hospital = user.hospital
-
-        # Still no hospital? deny access
         if not hospital:
             return qs.none()
 
-        return qs.filter(user__hospital=hospital)
+        return qs.filter(hospital=hospital)
     
 
 class OTPManager(models.Manager):

@@ -16,6 +16,8 @@ from .models import OTP, SessionToken
 from .permissions import IsActivated, IsHospital
 from .serializers import (
     DoctorOnboardingSerializer,
+    DoctorProfileDetailSerializer,
+    DoctorProfileUpdateSerializer,
     DoctorRegistrationSerializer,
     EmailLoginSerializer,
     HospitalOnboardingSerializer,
@@ -26,6 +28,7 @@ from .serializers import (
     PasswordResetOTPResendSerializer,
     PasswordResetRequestSerializer,
     PatientOnboardingSerializer,
+    PatientProfileDetailSerializer,
     PatientProfileUpdateSerializer,
     PatientRegistrationSerializer,
     SignUpOTPResendSerializer,
@@ -832,9 +835,34 @@ class HospitalOnboardingAPIView(generics.CreateAPIView):
         )
     
 class PatientProfileUpdateView(generics.RetrieveUpdateAPIView):
-    serializer_class = PatientProfileUpdateSerializer
+    
     permission_classes = [IsAuthenticated]
-
+    
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return PatientProfileUpdateSerializer
+        return PatientProfileDetailSerializer
+    
     def get_object(self):
         # Ensure only patient updates their own profile
+        if not hasattr(self.request.user, 'patient'):
+            raise ValidationError({"detail": "No patient profile associated with this user."})
         return self.request.user.patient
+
+
+class DoctorProfileUpdateView(generics.RetrieveUpdateAPIView):
+    
+    permission_classes = [IsAuthenticated]
+
+
+    def get_serializer_class(self):
+        # Use different serializers depending on the request method
+        if self.request.method in ["PUT", "PATCH"]:
+            return DoctorProfileUpdateSerializer
+        return DoctorProfileDetailSerializer
+    
+    def get_object(self):
+        # Ensure only patient updates their own profile
+        if not hasattr(self.request.user, 'doctor'):
+            raise ValidationError({"detail": "No doctor profile associated with this user."})
+        return self.request.user.doctor

@@ -9,7 +9,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .exceptions import ExistingHospitalError, ExistingLicenseError, ExistingUserError
-from .field_choices import SPECIALIZATION_CHOICES
+from .field_choices import SPECIALIZATION_CHOICES, GENDER
 from .models import OTP, Doctor, Patient, SessionToken
 from .validators import validate_email_address
 
@@ -468,22 +468,101 @@ class HospitalDetailSerializer(serializers.ModelSerializer):
         ref_name = "Hospitals.HospitalDetailSerializer"
 
 class PatientProfileUpdateSerializer(serializers.ModelSerializer):
-    patient_id = serializers.ReadOnlyField()
-    email = serializers.EmailField(source="user.email" ,read_only=True)
     first_name = serializers.CharField(source="user.first_name", required=False)
     last_name = serializers.CharField(source="user.last_name", required=False)
     age = serializers.IntegerField(source="user.age", required=False)
     gender = serializers.CharField(source="user.gender", required=False)
-    hospital =HospitalDetailSerializer(read_only=True)
-    assigned_doctor = AssignedDoctorSerializer(read_only=True)
 
+    class Meta:
+        model = Patient
+        fields = ["first_name", "last_name", "age", "gender", "medical_history"]
+
+    def update(self, instance, validated_data):
+        # Handle nested user fields
+        user_data = validated_data.pop("user", {})
+        for attr, value in user_data.items():
+            setattr(instance.user, attr, value)
+        instance.user.save()
+
+        # Update patient fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
+class PatientProfileDetailSerializer(serializers.ModelSerializer):
+    patient_id = serializers.ReadOnlyField()
+    email = serializers.EmailField(source="user.email", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", read_only=True)
+    last_name = serializers.CharField(source="user.last_name", read_only=True)
+    age = serializers.IntegerField(source="user.age", read_only=True)
+    gender = serializers.CharField(source="user.gender", read_only=True)
+    hospital = HospitalDetailSerializer(read_only=True)
+    assigned_doctor = AssignedDoctorSerializer(read_only=True)
 
     class Meta:
         model = Patient
         fields = [
-            "email", "patient_id" ,"first_name", "last_name", "age", "gender", "medical_history", "hospital", "assigned_doctor"
+            "email", "patient_id", "first_name", "last_name", "age", "gender",
+            "medical_history", "hospital", "assigned_doctor"
         ]
-        
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+
+        assigned_doctor = rep.get("assigned_doctor")
+        if assigned_doctor and "user" in assigned_doctor:
+            user_data = assigned_doctor.pop("user", {})
+            assigned_doctor.update(user_data)
+            rep["assigned_doctor"] = assigned_doctor
+
+        return rep
+class DoctorPatientListSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", read_only=True)
+    last_name = serializers.CharField(source="user.last_name", read_only=True)
+    patient_id = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = ["patient_id", "email", "first_name", "last_name"]
+
+class DoctorProfileDetailSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", required=False)
+    last_name = serializers.CharField(source="user.last_name", required=False)
+    age = serializers.IntegerField(source="user.age", required=False)
+    gender = serializers.CharField(source="user.gender", required=False)
+    specialization = serializers.ListField(
+        child=serializers.ChoiceField(choices=SPECIALIZATION_CHOICES),
+        required=False
+    )
+    license_number = serializers.CharField(required=False)
+    hospital = HospitalDetailSerializer(read_only=True)
+    patients = DoctorPatientListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Doctor
+        fields = [
+            "email", "doctor_id", "first_name", "last_name", "age", "gender",
+            "specialization", "hospital", "license_number", "patients"
+        ]
+
+class DoctorProfileUpdateSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source="user.first_name", required=False)
+    last_name = serializers.CharField(source="user.last_name", required=False)
+    age = serializers.IntegerField(source="user.age", required=False)
+    gender = serializers.ChoiceField(source="user.gender", required=False, choices=GENDER)
+    specialization = serializers.ListField(
+        child=serializers.ChoiceField(choices=SPECIALIZATION_CHOICES),
+        required=False
+    )
+    license_number = serializers.CharField(required=False)
+
+    class Meta:
+        model = Doctor
+        fields = ["first_name", "last_name", "age", "gender", "specialization", "license_number"]
 
     def update(self, instance, validated_data):
         # pop nested user data
@@ -492,26 +571,10 @@ class PatientProfileUpdateSerializer(serializers.ModelSerializer):
             setattr(instance.user, attr, value)
         instance.user.save()
 
-        # update patient fields
+        # update doctor fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
         return instance
-    def to_representation(self, instance):
-        """
-        Format successful responses without interfering with errors.
-        """
-        representation = super().to_representation(instance)
 
-        assigned_doctor = representation.get("assigned_doctor")
-        if assigned_doctor and "user" in assigned_doctor:
-            user_data = assigned_doctor.pop("user", {})
-            # Merge doctor_id and user fields
-            assigned_doctor.update(user_data)
-            representation["assigned_doctor"] = assigned_doctor
-
-        return representation
-
-    
-        
