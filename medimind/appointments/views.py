@@ -203,7 +203,7 @@ class PatientAppointmentRescheduleAPIView(APIView):
     - PATCH: Reschedule their appointment (if doctor is available)
     """
 
-    permission_classes = [permissions.IsAuthenticated, IsActivated, (IsDoctor or IsPatient)]
+    permission_classes = [permissions.IsAuthenticated, IsActivated,]
 
     @swagger_auto_schema(
         tags=["Appointments"],
