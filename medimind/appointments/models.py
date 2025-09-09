@@ -61,6 +61,9 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    rescheduled_count = models.PositiveIntegerField(default=0)
+    last_rescheduled_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ["-date", "time"]
 

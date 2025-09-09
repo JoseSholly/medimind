@@ -15,6 +15,7 @@ from .views import (  # DoctorSignUpView,
     SignUpOTPResendView,
     SignUpOTPverificationView,
     DoctorProfileUpdateView,
+    HospitalDoctorListAPIView
 )
 
 urlpatterns = [
@@ -22,7 +23,7 @@ urlpatterns = [
     path('v1/patient/onboarding/', PatientOnboardingView.as_view(), name='patient-onboarding'),
     path("v1/patient/profile/", PatientProfileUpdateView.as_view(), name="patient-profile-update"),
     path("v1/doctor/profile/", DoctorProfileUpdateView.as_view(), name="patient-doctor-update"),
-    # path('v1/doctor/signup/', DoctorSignUpView.as_view(), name='doctor-signup'),
+    path('v1/list-doctors/', HospitalDoctorListAPIView.as_view(), name='doctor-signup'),
     path('v1/doctor/onboarding/', DoctorOnboardingAPIView.as_view(), name='doctor-onboarding'),
     path('v1/hospital/signup/', HospitalSignUpView.as_view(), name='hospital-signup'),
     path('v1/hospital/onboarding/', HospitalOnboardingAPIView.as_view(), name='hospital-onboarding'),

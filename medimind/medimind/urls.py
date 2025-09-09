@@ -41,6 +41,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('users.urls')), 
     path('api/', include('hospitals.urls')), 
+    path('api/', include('appointments.urls')), 
     # Documentation
     path(
         "",

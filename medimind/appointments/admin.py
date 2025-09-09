@@ -1,5 +1,4 @@
 from django.contrib import admin
-
 from .models import Appointment
 
 
@@ -13,6 +12,8 @@ class AppointmentAdmin(admin.ModelAdmin):
         "date",
         "time",
         "status",
+        "rescheduled_count",
+        "last_rescheduled_at",
         "created_at",
     )
     list_filter = ("status", "hospital", "doctor", "date")
@@ -26,7 +27,7 @@ class AppointmentAdmin(admin.ModelAdmin):
     )
     list_editable = ("status",)
     date_hierarchy = "date"
-    readonly_fields = ("appointment_id", "created_at", "updated_at")
+    readonly_fields = ("appointment_id", "created_at", "updated_at", "rescheduled_count", "last_rescheduled_at")
     fieldsets = (
         (None, {
             "fields": ("appointment_id", "status")
@@ -35,7 +36,7 @@ class AppointmentAdmin(admin.ModelAdmin):
             "fields": ("hospital", "doctor", "patient", "date", "time")
         }),
         ("Additional Information", {
-            "fields": ("reason", "created_at", "updated_at")
+            "fields": ("reason", "rescheduled_count", "last_rescheduled_at", "created_at", "updated_at")
         }),
     )
 

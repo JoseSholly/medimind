@@ -22,3 +22,17 @@ class IsActivated(BasePermission):
 
         # Check if the user is activated
         return request.user.is_activated
+    
+class IsDoctor(BasePermission):
+    """
+    Allows access only to authenticated users who are doctor accounts.
+    """
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.user_type == "doctor" and request.user.is_doctor)
+    
+class IsPatient(BasePermission):
+    """
+    Allows access only to authenticated users who are patient accounts.
+    """
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.user_type == "patient" and request.user.is_patient)

@@ -578,3 +578,10 @@ class DoctorProfileUpdateSerializer(serializers.ModelSerializer):
 
         return instance
 
+class DoctorListSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source="user.get_full_name", read_only=True)
+    specialization = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Doctor
+        fields = ["doctor_id", "doctor_name", "specialization"]

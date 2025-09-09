@@ -12,9 +12,10 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import OTP, SessionToken
+from .models import OTP, Doctor, SessionToken
 from .permissions import IsActivated, IsHospital
 from .serializers import (
+    DoctorListSerializer,
     DoctorOnboardingSerializer,
     DoctorProfileDetailSerializer,
     DoctorProfileUpdateSerializer,
@@ -866,3 +867,47 @@ class DoctorProfileUpdateView(generics.RetrieveUpdateAPIView):
         if not hasattr(self.request.user, 'doctor'):
             raise ValidationError({"detail": "No doctor profile associated with this user."})
         return self.request.user.doctor
+
+
+# views.py
+class HospitalDoctorListAPIView(views.APIView):
+    """
+    Patients can:
+    - GET: List doctors in their hospital
+    """
+
+    permission_classes = [IsAuthenticated, IsActivated]
+
+    @swagger_auto_schema(
+        tags=["Doctors"],
+        responses={200: DoctorListSerializer(many=True)},
+        operation_summary="List Doctors in Patient's Hospital or Hospital Admin's Hospital",
+    )
+    def get(self, request):
+        hospital = None
+
+        # If patient is logged in
+        if hasattr(request.user, "patient"):
+            hospital = request.user.patient.hospital
+
+        # If hospital admin is logged in
+        elif hasattr(request.user, "hospital"):
+            hospital = request.user.hospital
+
+        if not hospital:
+            return Response(
+                {"error": "No hospital information found for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        doctors = Doctor.objects.filter(hospital=hospital)
+        serializer = DoctorListSerializer(doctors, many=True)
+
+        return Response(
+            {
+                "status": "success",
+                "hospital": hospital.name,
+                "doctors": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
