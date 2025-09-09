@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'medications',
     'adherence',
     'notifications',
+    'appointments',
 
     # third-party apps
     "corsheaders",
