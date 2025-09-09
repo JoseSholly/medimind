@@ -1,91 +1,154 @@
-from datetime import datetime, timedelta
+from datetime import time, timedelta
 
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-from hospitals.models import Hospital
+from django.utils.translation import gettext_lazy as _
+from users.mixins import TimestampMixin
 from users.models import Doctor, Patient
+import uuid
 
-
-class Medication(models.Model):
-    hospital = models.ForeignKey(
-        Hospital, on_delete=models.CASCADE, related_name="medications"
+class Prescription(TimestampMixin, models.Model):
+    prescription_id = models.CharField(
+        max_length=15,
+        unique=True,
+        editable=False,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=_("Unique prescription ID in format PRE-XXXXXXXX"),
     )
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    dosage = models.CharField(max_length=100)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ("hospital", "name")  # Medication name unique per hospital
-
-    def __str__(self):
-        return self.name
-
-
-class Prescription(models.Model):
-    hospital = models.ForeignKey(
-        Hospital, on_delete=models.CASCADE, related_name="prescriptions"
+    doctor = models.ForeignKey(
+        Doctor,
+        on_delete=models.CASCADE,
+        related_name="prescriptions",
+        help_text=_("The doctor who issued this prescription."),
     )
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name="prescriptions")
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="prescriptions")
-    medication = models.ForeignKey(Medication, on_delete=models.CASCADE, related_name="prescriptions")
-
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name="prescriptions",
+        help_text=_("The patient who receives this prescription."),
+    )
     start_date = models.DateField()
     end_date = models.DateField()
-    instructions = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+
 
     class Meta:
-        ordering = ["start_date"]
-
-    def clean(self):
-        # Hospital consistency enforcement
-        if self.doctor.user.hospital_id != self.hospital_id:
-            raise ValidationError("Doctor's hospital must match prescription hospital.")
-        if self.patient.user.hospital_id != self.hospital_id:
-            raise ValidationError("Patient's hospital must match prescription hospital.")
-        if self.medication.hospital_id != self.hospital_id:
-            raise ValidationError("Medication's hospital must match prescription hospital.")
+        ordering = ['-created_at']
+        verbose_name = "Prescription"
+        verbose_name_plural = "Prescriptions"
+        indexes = [
+            models.Index(fields=['prescription_id']),
+            models.Index(fields=['doctor', 'patient']),
+        ]
 
     def __str__(self):
-        return f"{self.medication.name} for {self.patient.user.get_full_name()}"
-
-    def get_next_dose_datetime(self):
-        """
-        Returns the next scheduled dose datetime for this prescription from now.
-        """
-        now = timezone.localtime()
-        today = now.date()
-
-        if self.end_date and today > self.end_date:
-            return None
-
-        # Check today's remaining schedules
-        schedules_today = self.schedules.all().order_by("time_of_day")
-        for schedule in schedules_today:
-            dose_dt = timezone.make_aware(datetime.combine(today, schedule.time_of_day))
-            if dose_dt > now:
-                return dose_dt
-
-        # Move to next day if no more doses today
-        next_day = today + timedelta(days=1)
-        if not self.end_date or next_day <= self.end_date:
-            first_time = schedules_today.first()
-            if first_time:
-                return timezone.make_aware(datetime.combine(next_day, first_time.time_of_day))
-
-        return None
+        return f"Prescription for {self.patient.user.get_full_name()} by Dr. {self.doctor.user.get_full_name()}"
+    
+    def save(self, *args, **kwargs):
+        if not self.prescription_id:
+            self.prescription_id = f"PRE-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
 
 
-class PrescriptionSchedule(models.Model):
-    prescription = models.ForeignKey(
-        Prescription, on_delete=models.CASCADE, related_name="schedules"
+
+class PrescriptionDrug(TimestampMixin, models.Model):
+    drug_id = models.CharField(
+        max_length=15,
+        unique=True,
+        editable=False,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=_("Unique drug ID in format DRG-XXXXXXXX"),
     )
-    time_of_day = models.TimeField()
-
+    prescription = models.ForeignKey(
+        Prescription,
+        on_delete=models.CASCADE,
+        related_name="drugs",
+        help_text=_("The prescription this drug belongs to."),
+    )
+    drug_name = models.CharField(
+        max_length=255, help_text=_("Free text drug name written by doctor.")
+    )
+    dosage_instruction = models.TextField(
+        help_text=_("Dosage instructions, e.g., '2 tablets after meal'.")
+    )
+    frequency_per_day = models.IntegerField(
+        help_text=_("How many times a day this drug should be taken.")
+    )
+    duration_days = models.IntegerField(
+        help_text=_("How many days the drug should be taken.")
+    )
     class Meta:
-        ordering = ["time_of_day"]
+        ordering = ['-created_at']
+        verbose_name = "Prescription Drug"
+        verbose_name_plural = "Prescription Drugs"
+        indexes = [
+            models.Index(fields=['prescription', 'drug_name']),
+        ]
+    def __str__(self):
+        return f"{self.drug_name} ({self.prescription.patient.user.get_full_name()})"
+    
+
+    def save(self, *args, **kwargs):
+        if not self.drug_id:
+            self.drug_id = f"DRG-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
+    
+
+    def generate_schedule(self):
+        """Generate prescription logs automatically based on frequency and duration."""
+        logs = []
+        start_date = self.prescription.start_date
+        interval_hours = 24 / self.frequency_per_day  # e.g. 3/day → every 8h
+
+        for day in range(self.duration_days):
+            current_date = start_date + timedelta(days=day)
+            for i in range(self.frequency_per_day):
+                scheduled_time = (timezone.datetime.combine(
+                    current_date, time.min
+                ) + timedelta(hours=i * interval_hours)).time()
+
+                logs.append(
+                    PrescriptionLog(
+                        prescription_drug=self,
+                        date=current_date,
+                        scheduled_time=scheduled_time,
+                    )
+                )
+
+        PrescriptionLog.objects.bulk_create(logs)
+
+    
+class PrescriptionLog(TimestampMixin, models.Model):
+
+    prescription_drug = models.ForeignKey(
+        PrescriptionDrug,
+        on_delete=models.CASCADE,
+        related_name="logs",
+        help_text=_("The drug schedule this log belongs to."),
+    )
+    date = models.DateField(help_text=_("The date this dose was scheduled."))
+    scheduled_time = models.TimeField(help_text=_("Expected time for this dose."))
+    taken = models.BooleanField(default=False, help_text=_("Whether patient took this dose."))
+    taken_at = models.DateTimeField(
+        null=True, blank=True, help_text=_("Timestamp when patient marked as taken.")
+    )
 
     def __str__(self):
-        return f"{self.prescription} at {self.time_of_day.strftime('%H:%M')}"
+        status = "Taken" if self.taken else "Not Taken"
+        return f"{self.prescription_drug.drug_name} - {self.date} ({status})"
+    
+    def get_status(self):
+        now = timezone.localtime()
+        scheduled_dt = timezone.make_aware(
+            timezone.datetime.combine(self.date, self.scheduled_time)
+        )
+        if self.taken:
+            return "Taken"
+        elif now > scheduled_dt:
+            return "Missed"
+        return "Pending"
+
