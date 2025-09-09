@@ -7,10 +7,15 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from .exceptions import ExistingLicenseError
 
+from .exceptions import ExistingLicenseError
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
-from .managers import CustomUserManager, OTPManager, TenantAwareManager, SessionTokenManager
+from .managers import (
+    CustomUserManager,
+    OTPManager,
+    SessionTokenManager,
+    TenantAwareManager,
+)
 from .mixins import TimestampMixin
 from .password_generator import IDGenerator
 from .validators import validate_gender, validate_specialization

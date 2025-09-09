@@ -42,6 +42,7 @@ urlpatterns = [
     path('api/', include('users.urls')), 
     path('api/', include('hospitals.urls')), 
     path('api/', include('appointments.urls')), 
+    path('api/', include('medications.urls')), 
     # Documentation
     path(
         "",

@@ -5,7 +5,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from users.mixins import TimestampMixin
 from users.models import Doctor, Patient
-import uuid
+
+from .id_generator import generate_drug_id, generate_log_id, generate_prescription_id
+
 
 class Prescription(TimestampMixin, models.Model):
     prescription_id = models.CharField(
@@ -15,6 +17,7 @@ class Prescription(TimestampMixin, models.Model):
         blank=True,
         null=True,
         db_index=True,
+        default=generate_prescription_id,
         help_text=_("Unique prescription ID in format PRE-XXXXXXXX"),
     )
 
@@ -33,24 +36,17 @@ class Prescription(TimestampMixin, models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
 
-
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         verbose_name = "Prescription"
         verbose_name_plural = "Prescriptions"
         indexes = [
-            models.Index(fields=['prescription_id']),
-            models.Index(fields=['doctor', 'patient']),
+            models.Index(fields=["prescription_id"]),
+            models.Index(fields=["doctor", "patient"]),
         ]
 
     def __str__(self):
         return f"Prescription for {self.patient.user.get_full_name()} by Dr. {self.doctor.user.get_full_name()}"
-    
-    def save(self, *args, **kwargs):
-        if not self.prescription_id:
-            self.prescription_id = f"PRE-{uuid.uuid4().hex[:8].upper()}"
-        super().save(*args, **kwargs)
-
 
 
 class PrescriptionDrug(TimestampMixin, models.Model):
@@ -61,6 +57,7 @@ class PrescriptionDrug(TimestampMixin, models.Model):
         blank=True,
         null=True,
         db_index=True,
+        default=generate_drug_id,
         help_text=_("Unique drug ID in format DRG-XXXXXXXX"),
     )
     prescription = models.ForeignKey(
@@ -81,35 +78,39 @@ class PrescriptionDrug(TimestampMixin, models.Model):
     duration_days = models.IntegerField(
         help_text=_("How many days the drug should be taken.")
     )
+
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         verbose_name = "Prescription Drug"
         verbose_name_plural = "Prescription Drugs"
         indexes = [
-            models.Index(fields=['prescription', 'drug_name']),
+            models.Index(fields=["prescription", "drug_name"]),
         ]
+
     def __str__(self):
         return f"{self.drug_name} ({self.prescription.patient.user.get_full_name()})"
-    
-
-    def save(self, *args, **kwargs):
-        if not self.drug_id:
-            self.drug_id = f"DRG-{uuid.uuid4().hex[:8].upper()}"
-        super().save(*args, **kwargs)
-    
 
     def generate_schedule(self):
         """Generate prescription logs automatically based on frequency and duration."""
         logs = []
+        if not self.prescription.start_date:
+            raise ValueError("Prescription start_date cannot be None")
+        
         start_date = self.prescription.start_date
+        
+        
+        if self.frequency_per_day <= 0:
+            raise ValueError("Frequency per day must be positive")
+        
         interval_hours = 24 / self.frequency_per_day  # e.g. 3/day → every 8h
 
         for day in range(self.duration_days):
             current_date = start_date + timedelta(days=day)
             for i in range(self.frequency_per_day):
-                scheduled_time = (timezone.datetime.combine(
-                    current_date, time.min
-                ) + timedelta(hours=i * interval_hours)).time()
+                scheduled_time = (
+                    timezone.datetime.combine(current_date, time.min)
+                    + timedelta(hours=i * interval_hours)
+                ).time()
 
                 logs.append(
                     PrescriptionLog(
@@ -121,9 +122,18 @@ class PrescriptionDrug(TimestampMixin, models.Model):
 
         PrescriptionLog.objects.bulk_create(logs)
 
-    
-class PrescriptionLog(TimestampMixin, models.Model):
 
+class PrescriptionLog(TimestampMixin, models.Model):
+    log_id = models.CharField(
+        max_length=15,
+        unique=True,
+        editable=False,
+        blank=True,
+        null=True,
+        db_index=True,
+        default=generate_log_id,
+        help_text=_("Unique log ID in format LOG-XXXXXXXX"),
+    )
     prescription_drug = models.ForeignKey(
         PrescriptionDrug,
         on_delete=models.CASCADE,
@@ -132,7 +142,9 @@ class PrescriptionLog(TimestampMixin, models.Model):
     )
     date = models.DateField(help_text=_("The date this dose was scheduled."))
     scheduled_time = models.TimeField(help_text=_("Expected time for this dose."))
-    taken = models.BooleanField(default=False, help_text=_("Whether patient took this dose."))
+    taken = models.BooleanField(
+        default=False, help_text=_("Whether patient took this dose.")
+    )
     taken_at = models.DateTimeField(
         null=True, blank=True, help_text=_("Timestamp when patient marked as taken.")
     )
@@ -140,15 +152,17 @@ class PrescriptionLog(TimestampMixin, models.Model):
     def __str__(self):
         status = "Taken" if self.taken else "Not Taken"
         return f"{self.prescription_drug.drug_name} - {self.date} ({status})"
-    
+
     def get_status(self):
+        if not self.date:
+            return "Invalid: Missing date"
+        
         now = timezone.localtime()
         scheduled_dt = timezone.make_aware(
             timezone.datetime.combine(self.date, self.scheduled_time)
         )
         if self.taken:
-            return "Taken"
+            return "taken"
         elif now > scheduled_dt:
-            return "Missed"
-        return "Pending"
-
+            return "missed"
+        return "pending"
