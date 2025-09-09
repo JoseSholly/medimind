@@ -123,7 +123,7 @@ class DoctorAppointmentListAPIView(APIView):
         return Response(
             {
                 "status": "success",
-                "appointments": data,
+                "appointment": data,
             },
             status=status.HTTP_200_OK,
         )
@@ -192,7 +192,7 @@ class HospitalAppointmentListAPIView(APIView):
         appointments = queryset.order_by("-date", "-time")
         serializer = AppointmentSerializer(appointments, many=True)
         return Response(
-            {"status": "success", "appointments": serializer.data},
+            {"status": "success", "appointment": serializer.data},
             status=status.HTTP_200_OK,
         )
     

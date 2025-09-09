@@ -60,6 +60,7 @@ class Command(BaseCommand):
                     last_name=last_name,
                     user_type="doctor",
                     is_active=True,
+                    is_activated=True,
                 )
 
                 # Pick random specializations (at least 2)
@@ -89,6 +90,7 @@ class Command(BaseCommand):
                         last_name=last_name,
                         user_type="patient",
                         is_active=True,
+                        is_activated=True,
                     )
 
                     patient = Patient.objects.create(
