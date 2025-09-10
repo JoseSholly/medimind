@@ -1158,8 +1158,16 @@ class PatientDashboardAPIView(views.APIView):
             "active_prescriptions": active_prescriptions.count(),
         }
 
+        # User Info
+
+        user_data = {
+            "patient_id": user.patient.patient_id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+        }
+
         return Response(
-            {
+            {   "user_data": user_data,
                 "today_date": today,
                 "summary": summary,
                 "today_schedule": logs_data,
