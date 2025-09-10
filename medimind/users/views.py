@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import OTP, Doctor, SessionToken
+from .models import OTP, Doctor, Patient, SessionToken
 from .permissions import IsActivated, IsHospital
 from .serializers import (
     ActivePrescriptionSerializer,
@@ -32,6 +32,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetOTPResendSerializer,
     PasswordResetRequestSerializer,
+    PatientListSerializer,
     PatientOnboardingSerializer,
     PatientProfileDetailSerializer,
     PatientProfileUpdateSerializer,
@@ -1006,7 +1007,6 @@ class DoctorProfileUpdateView(generics.RetrieveUpdateAPIView):
         return self.request.user.doctor
 
 
-# views.py
 class HospitalDoctorListAPIView(views.APIView):
     """
     Patients can:
@@ -1048,7 +1048,49 @@ class HospitalDoctorListAPIView(views.APIView):
             },
             status=status.HTTP_200_OK,
         )
+class PatientListAPIView(views.APIView):
+    """
+    Patients can:
+    - GET: List patients in their hospital
+    """
 
+    permission_classes = [IsAuthenticated, IsActivated]
+
+    @swagger_auto_schema(
+        tags=["Patient"],
+        responses={200: PatientListSerializer(many=True)},
+        operation_summary="List Patients in Doctor's Hospital or Hospital Admin's Hospital",
+    )
+    def get(self, request):
+        hospital = None
+
+        # If doctor is logged in
+        if hasattr(request.user, "doctor"):
+            hospital = request.user.doctor.hospital
+            doctors = Patient.objects.filter(hospital=hospital, assigned_doctor=request.user.doctor)
+
+        # If hospital admin is logged in
+        elif hasattr(request.user, "hospital"):
+            hospital = request.user.hospital
+            doctors = Patient.objects.filter(hospital=hospital)
+
+        if not hospital:
+            return Response(
+                {"error": "No hospital information found for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        
+        serializer = PatientListSerializer(doctors, many=True)
+
+        return Response(
+            {
+                "status": "success",
+                "hospital": hospital.name,
+                "doctors": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class PatientDashboardAPIView(views.APIView):
     """

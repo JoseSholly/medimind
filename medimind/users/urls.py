@@ -8,16 +8,17 @@ from .views import (  # DoctorSignUpView,
     HospitalOnboardingAPIView,
     HospitalSignUpView,
     LogoutAPIView,
+    MarkLogTakenAPIView,
     PasswordResetConfirmView,
     PasswordResetOTPResendView,
     PasswordResetRequestView,
     PatientDashboardAPIView,
+    PatientListAPIView,
     PatientOnboardingView,
     PatientProfileUpdateView,
     PatientSignUpView,
     SignUpOTPResendView,
     SignUpOTPverificationView,
-    MarkLogTakenAPIView,
 )
 
 urlpatterns = [
@@ -42,7 +43,8 @@ urlpatterns = [
         DoctorProfileUpdateView.as_view(),
         name="patient-doctor-update",
     ),
-    path("v1/list-doctors/", HospitalDoctorListAPIView.as_view(), name="doctor-signup"),
+    path("v1/list-doctors/", HospitalDoctorListAPIView.as_view(), name="doctor-list"),
+    path("v1/list-patients/", PatientListAPIView.as_view(), name="patient-list"),
     path(
         "v1/doctor/onboarding/",
         DoctorOnboardingAPIView.as_view(),
@@ -79,5 +81,9 @@ urlpatterns = [
         PasswordResetConfirmView.as_view(),
         name="password-reset-confirm",
     ),
-     path("v1/med/<str:log_id>/taken/", MarkLogTakenAPIView.as_view(), name="mark-log-taken"),
+    path(
+        "v1/med/<str:log_id>/taken/",
+        MarkLogTakenAPIView.as_view(),
+        name="mark-log-taken",
+    ),
 ]

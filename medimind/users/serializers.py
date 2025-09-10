@@ -654,6 +654,16 @@ class DoctorListSerializer(serializers.ModelSerializer):
         fields = ["doctor_id", "doctor_name", "specialization"]
 
 
+class PatientListSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="user.get_full_name", read_only=True)
+    assigned_doctor_id = serializers.CharField(source="assigned_doctor.doctor_id", read_only=True)
+    assigned_doctor_name = serializers.CharField(source="assigned_doctor.user.get_full_name", read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = ["patient_id", "patient_name","assigned_doctor_id", "assigned_doctor_name"]
+
+
 class PatientScheduleLogSerializer(serializers.ModelSerializer):
     prescription_id = serializers.CharField(
         source="prescription_drug.prescription.prescription_id", read_only=True
