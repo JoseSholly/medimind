@@ -150,19 +150,23 @@ class PrescriptionLog(TimestampMixin, models.Model):
     )
 
     def __str__(self):
-        status = "Taken" if self.taken else "Not Taken"
+        status = "taken" if self.taken else "Not Taken"
         return f"{self.prescription_drug.drug_name} - {self.date} ({status})"
 
     def get_status(self):
         if not self.date:
-            return "Invalid: Missing date"
-        
+            raise "invalid date"
+
         now = timezone.localtime()
         scheduled_dt = timezone.make_aware(
             timezone.datetime.combine(self.date, self.scheduled_time)
         )
+
         if self.taken:
             return "taken"
-        elif now > scheduled_dt:
+
+        # Allow 1-hour grace period
+        if now > scheduled_dt + timezone.timedelta(hours=1):
             return "missed"
+
         return "pending"
