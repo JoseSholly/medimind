@@ -362,6 +362,7 @@ class DoctorOnboardingSerializer(serializers.ModelSerializer):
             last_name=last_name,
             password=password or User.objects.make_random_password(),
             user_type="doctor",  # if you have a role field
+            is_activated = True
         )
 
         # create the Doctor profile
