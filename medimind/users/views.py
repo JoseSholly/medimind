@@ -16,9 +16,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import OTP, Doctor, Patient, SessionToken
-from .permissions import IsActivated, IsHospital
+from .permissions import IsActivated, IsDoctor, IsHospital, IsPatient
 from .serializers import (
-    ActivePrescriptionSerializer,
+    AdminPatientListSerializer,
+    DoctorActivePrescriptionSerializer,
     DoctorListSerializer,
     DoctorOnboardingSerializer,
     DoctorProfileDetailSerializer,
@@ -32,6 +33,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetOTPResendSerializer,
     PasswordResetRequestSerializer,
+    PatientActivePrescriptionSerializer,
     PatientListSerializer,
     PatientOnboardingSerializer,
     PatientProfileDetailSerializer,
@@ -1048,6 +1050,8 @@ class HospitalDoctorListAPIView(views.APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
 class PatientListAPIView(views.APIView):
     """
     Patients can:
@@ -1067,7 +1071,9 @@ class PatientListAPIView(views.APIView):
         # If doctor is logged in
         if hasattr(request.user, "doctor"):
             hospital = request.user.doctor.hospital
-            doctors = Patient.objects.filter(hospital=hospital, assigned_doctor=request.user.doctor)
+            doctors = Patient.objects.filter(
+                hospital=hospital, assigned_doctor=request.user.doctor
+            )
 
         # If hospital admin is logged in
         elif hasattr(request.user, "hospital"):
@@ -1080,7 +1086,6 @@ class PatientListAPIView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        
         serializer = PatientListSerializer(doctors, many=True)
 
         return Response(
@@ -1092,6 +1097,109 @@ class PatientListAPIView(views.APIView):
             status=status.HTTP_200_OK,
         )
 
+
+class DoctorDashboardAPIView(views.APIView):
+    """
+    Doctor Dashboard:
+    - Summary (Total patients, Active Prescriptions, )
+    - Patient information
+    - Prescription information
+    """
+
+    permission_classes = [IsAuthenticated, IsDoctor]
+
+    @swagger_auto_schema(
+        tags=["Dashboard"],
+        operation_summary="Doctor dashboard",
+    )
+    def get(self, request):
+        user = request.user
+        today = date.today()
+
+        # Active prescriptions under doctor
+        active_prescriptions = Prescription.objects.filter(doctor__user=user)
+
+        # Get each Prescrition under doctor supervision
+        active_drugs = PrescriptionDrug.objects.filter(prescription__doctor__user=user)
+
+        # Serialize prescriptions with progress
+        active_prescriptions_data = DoctorActivePrescriptionSerializer(
+            active_drugs, many=True
+        ).data
+
+        # Today’s logs
+        logs = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__doctor__user=user, date=today
+        ).order_by("scheduled_time")
+
+        # Mark "next" dose
+        now = timezone.localtime().time()
+        next_pending = None
+        for log in logs:
+            if not log.taken and log.scheduled_time >= now:
+                next_pending = log
+                break
+
+        logs_data = []
+        for log in logs:
+            serializer = PatientScheduleLogSerializer(log)
+            data = serializer.data
+            if next_pending and log.id == next_pending.id:
+                data["next"] = True
+            logs_data.append(data)
+
+        # Summary
+        start_of_week = today - timedelta(days=today.weekday())
+        logs_this_week = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__doctor__user=user,
+            date__gte=start_of_week,
+            date__lte=today,
+        )
+        weekly_missed_count = sum(
+            1 for log in logs_this_week if log.get_status() == "missed"
+        )
+
+        logs_today = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__doctor__user=user,
+            date=today,
+        )
+        daily_missed_count = sum(
+            1 for log in logs_today if log.get_status() == "missed"
+        )
+
+        patients_qs = Patient.objects.filter(assigned_doctor=user.doctor)
+
+        patients_data = AdminPatientListSerializer(patients_qs, many=True).data
+
+        total_num_patients = len(patients_data) 
+
+        summary = {
+            "total_num_patients": total_num_patients,
+            "today_meds": logs.count(),
+            "missed_today": daily_missed_count,
+            "missed_this_week": weekly_missed_count,
+            "active_prescriptions": active_prescriptions.count(),
+            
+        }
+
+        # User Info
+        user_data = {
+            "doctor_id": user.doctor.doctor_id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+        }
+
+        return Response(
+            {
+                "user": user_data,
+                "today_date": today,
+                "summary": summary,
+                "patients" : patients_data,
+                "active_prescriptions": active_prescriptions_data,
+            }
+        )
+
+
 class PatientDashboardAPIView(views.APIView):
     """
     Patient Dashboard:
@@ -1099,14 +1207,13 @@ class PatientDashboardAPIView(views.APIView):
     - Today’s schedule (sorted, with next pending marked)
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsPatient]
+
     @swagger_auto_schema(
         tags=["Dashboard"],
         operation_summary="Patient dashboard",
     )
     def get(self, request):
-        
-
         user = request.user
         today = date.today()
 
@@ -1117,7 +1224,7 @@ class PatientDashboardAPIView(views.APIView):
         active_drugs = PrescriptionDrug.objects.filter(prescription__patient__user=user)
 
         # Serialize prescriptions with progress
-        active_prescriptions_data = ActivePrescriptionSerializer(
+        active_prescriptions_data = PatientActivePrescriptionSerializer(
             active_drugs, many=True
         ).data
 
@@ -1167,13 +1274,16 @@ class PatientDashboardAPIView(views.APIView):
         }
 
         return Response(
-            {   "user_data": user_data,
+            {
+                "user_data": user_data,
                 "today_date": today,
                 "summary": summary,
                 "today_schedule": logs_data,
                 "active_prescriptions": active_prescriptions_data,
             }
         )
+
+
 class MarkLogTakenAPIView(views.APIView):
     """
     Patient marks a prescription log as taken.
@@ -1183,7 +1293,7 @@ class MarkLogTakenAPIView(views.APIView):
         try:
             log = PrescriptionLog.objects.get(
                 log_id=log_id,
-                prescription_drug__prescription__patient__user=request.user
+                prescription_drug__prescription__patient__user=request.user,
             )
         except PrescriptionLog.DoesNotExist:
             return Response(

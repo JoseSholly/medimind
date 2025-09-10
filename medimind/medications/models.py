@@ -1,5 +1,6 @@
 from datetime import time, timedelta
 
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -73,9 +74,11 @@ class PrescriptionDrug(TimestampMixin, models.Model):
         help_text=_("Dosage instructions, e.g., '2 tablets after meal'.")
     )
     frequency_per_day = models.IntegerField(
+        validators=[MinValueValidator(1)],
         help_text=_("How many times a day this drug should be taken.")
     )
     duration_days = models.IntegerField(
+        validators=[MinValueValidator(1)],
         help_text=_("How many days the drug should be taken.")
     )
 
@@ -89,7 +92,7 @@ class PrescriptionDrug(TimestampMixin, models.Model):
 
     def __str__(self):
         return f"{self.drug_name} ({self.prescription.patient.user.get_full_name()})"
-    
+
     def get_end_date(self):
         """
         Calculate the end date of this drug’s prescription based on
@@ -99,7 +102,7 @@ class PrescriptionDrug(TimestampMixin, models.Model):
         if not self.prescription.start_date:
             return None
         return self.prescription.start_date + timedelta(days=self.duration_days - 1)
-    
+
     @property
     def get_status(self):
         """
@@ -108,6 +111,10 @@ class PrescriptionDrug(TimestampMixin, models.Model):
         """
         if not self.prescription.start_date:
             return "invalid"  # No start date → cannot determine
+        
+
+        if not isinstance(self.duration_days, int) or self.duration_days <= 0:
+            return "invalid"  # Invalid duration_days
 
         today = timezone.localdate()
         start_date = self.prescription.start_date
@@ -154,10 +161,9 @@ class PrescriptionDrug(TimestampMixin, models.Model):
 
             for i in range(self.frequency_per_day):
                 # Scheduled time = baseline + interval
-                scheduled_dt = (
-                    timezone.datetime.combine(current_date, first_dose_time)
-                    + timedelta(hours=i * interval_hours)
-                )
+                scheduled_dt = timezone.datetime.combine(
+                    current_date, first_dose_time
+                ) + timedelta(hours=i * interval_hours)
                 logs.append(
                     PrescriptionLog(
                         prescription_drug=self,
@@ -168,7 +174,38 @@ class PrescriptionDrug(TimestampMixin, models.Model):
 
         PrescriptionLog.objects.bulk_create(logs)
 
-        
+    def get_daily_times(self, strict=False):
+        """
+        Return a list of times (as strings HH:MM) representing
+        when this drug is scheduled to be taken each day.
+
+        Modes:
+        - Default: start at 8 AM baseline, spread across waking hours.
+        - Strict: spread evenly across 24 hours (e.g., every 8h for 3x/day).
+        """
+        if self.frequency_per_day <= 0:
+            return []
+
+        # Strict mode → evenly across 24h starting at midnight
+        if strict:
+            interval_hours = 24 / self.frequency_per_day
+            first_dose_time = time(0, 0)
+        else:
+            # Default → start at 8 AM
+            first_dose_time = time(8, 0)
+            if self.frequency_per_day == 1:
+                interval_hours = 0
+            else:
+                interval_hours = 12 / (self.frequency_per_day - 1)
+
+        times = []
+        for i in range(self.frequency_per_day):
+            scheduled_dt = timezone.datetime.combine(
+                timezone.localdate(), first_dose_time
+            ) + timedelta(hours=i * interval_hours)
+            times.append(scheduled_dt.time().strftime("%H:%M"))
+
+        return times
 
 
 class PrescriptionLog(TimestampMixin, models.Model):
@@ -224,4 +261,3 @@ class PrescriptionLog(TimestampMixin, models.Model):
 
         # Beyond 1-hour grace → missed
         return "missed"
-

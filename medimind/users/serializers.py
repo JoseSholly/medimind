@@ -65,7 +65,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         return user
 
     def to_internal_value(self, data):
-        """Process incoming data without custom error formatting.""" 
+        """Process incoming data without custom error formatting."""
         return super().to_internal_value(data)
 
     def to_representation(self, instance):
@@ -362,7 +362,7 @@ class DoctorOnboardingSerializer(serializers.ModelSerializer):
             last_name=last_name,
             password=password or User.objects.make_random_password(),
             user_type="doctor",  # if you have a role field
-            is_activated = True
+            is_activated=True,
         )
 
         # create the Doctor profile
@@ -657,12 +657,21 @@ class DoctorListSerializer(serializers.ModelSerializer):
 
 class PatientListSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source="user.get_full_name", read_only=True)
-    assigned_doctor_id = serializers.CharField(source="assigned_doctor.doctor_id", read_only=True)
-    assigned_doctor_name = serializers.CharField(source="assigned_doctor.user.get_full_name", read_only=True)
+    assigned_doctor_id = serializers.CharField(
+        source="assigned_doctor.doctor_id", read_only=True
+    )
+    assigned_doctor_name = serializers.CharField(
+        source="assigned_doctor.user.get_full_name", read_only=True
+    )
 
     class Meta:
         model = Patient
-        fields = ["patient_id", "patient_name","assigned_doctor_id", "assigned_doctor_name"]
+        fields = [
+            "patient_id",
+            "patient_name",
+            "assigned_doctor_id",
+            "assigned_doctor_name",
+        ]
 
 
 class PatientScheduleLogSerializer(serializers.ModelSerializer):
@@ -697,7 +706,7 @@ class PatientScheduleLogSerializer(serializers.ModelSerializer):
         return obj.get_status()
 
 
-class ActivePrescriptionSerializer(serializers.ModelSerializer):
+class PatientActivePrescriptionSerializer(serializers.ModelSerializer):
     progress = serializers.SerializerMethodField()
     stats = serializers.SerializerMethodField()
     start_date = serializers.DateField(source="prescription.start_date")
@@ -720,7 +729,7 @@ class ActivePrescriptionSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return obj.get_status
-    
+
     def get_end_date(self, obj):
         return obj.get_end_date()
 
@@ -742,6 +751,88 @@ class ActivePrescriptionSerializer(serializers.ModelSerializer):
             "missed": missed,
             "pending": pending,
         }
+
+
+class DoctorActivePrescriptionSerializer(serializers.ModelSerializer):
+    prescription_id = serializers.CharField(source="prescription.prescription_id")
+    patient_id = serializers.CharField(source="prescription.patient.patient_id")
+    patient_name = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
+    stats = serializers.SerializerMethodField()
+    start_date = serializers.DateField(source="prescription.start_date")
+    status = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    daily_times = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PrescriptionDrug
+        fields = [
+            "prescription_id",
+            "patient_id",
+            "patient_name",
+            "drug_id",
+            "drug_name",
+            "dosage_instruction",
+            "start_date",
+            "end_date",
+            "frequency_per_day",
+            "daily_times",
+            "duration_days",
+            "status",
+            "progress",
+            "stats",
+        ]
+
+    def get_patient_name(self, obj):
+        user = obj.prescription.patient.user
+        if user:
+            return user.get_full_name()
+        return None
+
+    def get_daily_times(self, obj):
+        return obj.get_daily_times()
+
+    def get_status(self, obj):
+        return obj.get_status
+
+    def get_end_date(self, obj):
+        return obj.get_end_date()
+
+    def get_progress(self, obj):
+        logs = PrescriptionLog.objects.filter(prescription_drug=obj)
+        total = logs.count()
+        if total == 0:
+            return 0
+        taken = logs.filter(taken=True).count()
+        return round((taken / total) * 100, 2)
+
+    def get_stats(self, obj):
+        logs = PrescriptionLog.objects.filter(prescription_drug=obj)
+        taken = logs.filter(taken=True).count()
+        missed = sum(1 for log in logs if log.get_status() == "missed")
+        pending = sum(1 for log in logs if log.get_status() == "pending")
+        return {
+            "taken": taken,
+            "missed": missed,
+            "pending": pending,
+        }
+
+
+class AdminPatientListSerializer(serializers.ModelSerializer):
+    patient_name = serializers.SerializerMethodField()
+    gender = serializers.CharField(source="user.gender")
+    age = serializers.CharField(source="user.age")
+
+    class Meta:
+        model = Patient
+        fields = ["patient_id", "patient_name", "gender", "age", "medical_history"]
+
+    def get_patient_name(self, obj):
+        if obj.user:
+            return obj.user.get_full_name()
+        return None
+
+
 class PrescriptionLogSerializer(serializers.ModelSerializer):
     prescription_id = serializers.CharField(
         source="prescription_drug.prescription.prescription_id", read_only=True
@@ -752,4 +843,11 @@ class PrescriptionLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PrescriptionLog
-        fields = ["prescription_id", "drug_name", "date", "scheduled_time", "taken", "taken_at"]
+        fields = [
+            "prescription_id",
+            "drug_name",
+            "date",
+            "scheduled_time",
+            "taken",
+            "taken_at",
+        ]
