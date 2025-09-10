@@ -731,6 +731,13 @@ class ActivePrescriptionSerializer(serializers.ModelSerializer):
             "pending": pending,
         }
 class PrescriptionLogSerializer(serializers.ModelSerializer):
+    prescription_id = serializers.CharField(
+        source="prescription_drug.prescription.prescription_id", read_only=True
+    )
+    drug_name = serializers.CharField(
+        source="prescription_drug.drug_name", read_only=True
+    )
+
     class Meta:
         model = PrescriptionLog
-        fields = ["id", "date", "scheduled_time", "taken", "taken_at"]
+        fields = ["prescription_id", "drug_name", "date", "scheduled_time", "taken", "taken_at"]

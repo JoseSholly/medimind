@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from smtplib import SMTPException
 
 from django.contrib.auth import get_user_model
@@ -1105,7 +1105,7 @@ class PatientDashboardAPIView(views.APIView):
         operation_summary="Patient dashboard",
     )
     def get(self, request):
-        from datetime import date
+        
 
         user = request.user
         today = date.today()

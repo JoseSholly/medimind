@@ -90,33 +90,49 @@ class PrescriptionDrug(TimestampMixin, models.Model):
     def __str__(self):
         return f"{self.drug_name} ({self.prescription.patient.user.get_full_name()})"
 
-    def generate_schedule(self):
-        """Generate prescription logs automatically based on frequency and duration."""
+    def generate_schedule(self, strict=False):
+        """
+        Generate prescription logs automatically based on frequency and duration.
+
+        Modes:
+        - Default: start at 8 AM baseline, spread across waking hours.
+        - Strict: spread evenly across 24 hours (e.g. every 8h for 3x/day).
+        """
         logs = []
         if not self.prescription.start_date:
             raise ValueError("Prescription start_date cannot be None")
-        
-        start_date = self.prescription.start_date
-        
-        
         if self.frequency_per_day <= 0:
             raise ValueError("Frequency per day must be positive")
-        
-        interval_hours = 24 / self.frequency_per_day  # e.g. 3/day → every 8h
+
+        start_date = self.prescription.start_date
+
+        # Determine base interval
+        if strict:
+            interval_hours = 24 / self.frequency_per_day
+            first_dose_time = time(0, 0)  # midnight start
+        else:
+            # Default: baseline 8 AM
+            first_dose_time = time(8, 0)
+            if self.frequency_per_day == 1:
+                interval_hours = 0  # single dose, always at 8 AM
+            else:
+                # Spread doses until bedtime (~8 PM latest)
+                interval_hours = 12 / (self.frequency_per_day - 1)
 
         for day in range(self.duration_days):
             current_date = start_date + timedelta(days=day)
-            for i in range(self.frequency_per_day):
-                scheduled_time = (
-                    timezone.datetime.combine(current_date, time.min)
-                    + timedelta(hours=i * interval_hours)
-                ).time()
 
+            for i in range(self.frequency_per_day):
+                # Scheduled time = baseline + interval
+                scheduled_dt = (
+                    timezone.datetime.combine(current_date, first_dose_time)
+                    + timedelta(hours=i * interval_hours)
+                )
                 logs.append(
                     PrescriptionLog(
                         prescription_drug=self,
                         date=current_date,
-                        scheduled_time=scheduled_time,
+                        scheduled_time=scheduled_dt.time(),
                     )
                 )
 
@@ -154,9 +170,10 @@ class PrescriptionLog(TimestampMixin, models.Model):
         return f"{self.prescription_drug.drug_name} - {self.date} ({status})"
 
     def get_status(self):
-        if not self.date:
-            raise "invalid date"
+        if not self.date or not self.scheduled_time:
+            raise ValueError("Invalid log: date and scheduled_time required.")
 
+        # Current timezone-aware datetime
         now = timezone.localtime()
         scheduled_dt = timezone.make_aware(
             timezone.datetime.combine(self.date, self.scheduled_time)
@@ -165,8 +182,14 @@ class PrescriptionLog(TimestampMixin, models.Model):
         if self.taken:
             return "taken"
 
-        # Allow 1-hour grace period
-        if now > scheduled_dt + timezone.timedelta(hours=1):
-            return "missed"
+        # Too early (before scheduled time)
+        if now < scheduled_dt:
+            return "pending"
 
-        return "pending"
+        # Within 1-hour grace period → "ready"
+        if scheduled_dt <= now <= scheduled_dt + timezone.timedelta(hours=1):
+            return "due"
+
+        # Beyond 1-hour grace → missed
+        return "missed"
+
