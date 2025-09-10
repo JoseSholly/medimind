@@ -65,7 +65,7 @@ class BaseRegistrationSerializer(serializers.ModelSerializer):
         return user
 
     def to_internal_value(self, data):
-        """Process incoming data without custom error formatting."""
+        """Process incoming data without custom error formatting.""" 
         return super().to_internal_value(data)
 
     def to_representation(self, instance):
@@ -700,17 +700,29 @@ class PatientScheduleLogSerializer(serializers.ModelSerializer):
 class ActivePrescriptionSerializer(serializers.ModelSerializer):
     progress = serializers.SerializerMethodField()
     stats = serializers.SerializerMethodField()
+    start_date = serializers.DateField(source="prescription.start_date")
+    status = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
 
     class Meta:
         model = PrescriptionDrug
         fields = [
             "drug_id",
             "drug_name",
+            "start_date",
+            "end_date",
             "frequency_per_day",
             "duration_days",
+            "status",
             "progress",
             "stats",
         ]
+
+    def get_status(self, obj):
+        return obj.get_status
+    
+    def get_end_date(self, obj):
+        return obj.get_end_date()
 
     def get_progress(self, obj):
         logs = PrescriptionLog.objects.filter(prescription_drug=obj)

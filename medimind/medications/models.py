@@ -89,6 +89,36 @@ class PrescriptionDrug(TimestampMixin, models.Model):
 
     def __str__(self):
         return f"{self.drug_name} ({self.prescription.patient.user.get_full_name()})"
+    
+    def get_end_date(self):
+        """
+        Calculate the end date of this drug’s prescription based on
+        the prescription start_date and duration_days.
+        End date is inclusive (last day patient should take the drug).
+        """
+        if not self.prescription.start_date:
+            return None
+        return self.prescription.start_date + timedelta(days=self.duration_days - 1)
+    
+    @property
+    def get_status(self):
+        """
+        Determine if this prescription drug is pending, active, or done
+        based on start_date (from Prescription) and duration_days.
+        """
+        if not self.prescription.start_date:
+            return "invalid"  # No start date → cannot determine
+
+        today = timezone.localdate()
+        start_date = self.prescription.start_date
+        end_date = start_date + timedelta(days=self.duration_days)
+
+        if today < start_date:
+            return "pending"
+        elif start_date <= today < end_date:
+            return "active"
+        else:
+            return "done"
 
     def generate_schedule(self, strict=False):
         """
@@ -137,6 +167,8 @@ class PrescriptionDrug(TimestampMixin, models.Model):
                 )
 
         PrescriptionLog.objects.bulk_create(logs)
+
+        
 
 
 class PrescriptionLog(TimestampMixin, models.Model):

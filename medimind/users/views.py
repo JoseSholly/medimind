@@ -1144,12 +1144,13 @@ class PatientDashboardAPIView(views.APIView):
 
         # Summary
         start_of_week = today - timedelta(days=today.weekday())
-        missed_count = PrescriptionLog.objects.filter(
+        logs_this_week = PrescriptionLog.objects.filter(
             prescription_drug__prescription__patient__user=user,
             date__gte=start_of_week,
-            taken=False,
-            date__lt=today,
-        ).count()
+            date__lte=today,
+        )
+
+        missed_count = sum(1 for log in logs_this_week if log.get_status() == "missed")
 
         summary = {
             "today_meds": logs.count(),
