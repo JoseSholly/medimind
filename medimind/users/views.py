@@ -4,6 +4,7 @@ from smtplib import SMTPException
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from hospitals.models import Hospital
@@ -18,6 +19,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import OTP, Doctor, Patient, SessionToken
 from .permissions import IsActivated, IsDoctor, IsHospital, IsPatient
 from .serializers import (
+    AdminDoctorListSerializer,
     AdminPatientListSerializer,
     DoctorActivePrescriptionSerializer,
     DoctorListSerializer,
@@ -1116,9 +1118,6 @@ class DoctorDashboardAPIView(views.APIView):
         user = request.user
         today = date.today()
 
-        # Active prescriptions under doctor
-        active_prescriptions = Prescription.objects.filter(doctor__user=user)
-
         # Get each Prescrition under doctor supervision
         active_drugs = PrescriptionDrug.objects.filter(prescription__doctor__user=user)
 
@@ -1174,15 +1173,22 @@ class DoctorDashboardAPIView(views.APIView):
         total_num_patients = len(patients_data)
 
 
-        overall_patients_adherence = user.doctor.adherence_summary()
+        adherence_percentage = user.doctor.adherence_summary().get("adherence_percentage", None)
+
+        # Number of active prescriptions under doctor
+        num_active_prescriptions = Prescription.objects.filter(
+            Q(doctor=user.doctor) &
+            Q(end_date__gte=today)
+        ).distinct().count()
+
 
         summary = {
             "total_num_patients": total_num_patients,
-            "overall_patients_adherence": overall_patients_adherence,
+            "patients_adherence_percentage": adherence_percentage,
             "today_meds": logs.count(),
             "missed_today": daily_missed_count,
             "missed_this_week": weekly_missed_count,
-            "active_prescriptions": active_prescriptions.count(),
+            "active_prescriptions": num_active_prescriptions,
         }
 
         # User Info
@@ -1191,6 +1197,8 @@ class DoctorDashboardAPIView(views.APIView):
             "first_name": user.first_name,
             "last_name": user.last_name,
         }
+
+        
 
         return Response(
             {
@@ -1219,9 +1227,6 @@ class PatientDashboardAPIView(views.APIView):
     def get(self, request):
         user = request.user
         today = date.today()
-
-        # Active prescriptions for patient
-        active_prescriptions = Prescription.objects.filter(patient__user=user)
 
         # Get all drugs for this patient's active prescriptions
         active_drugs = PrescriptionDrug.objects.filter(prescription__patient__user=user)
@@ -1262,12 +1267,18 @@ class PatientDashboardAPIView(views.APIView):
 
         missed_count = sum(1 for log in logs_this_week if log.get_status() == "missed")
 
-        overall_adhenrence = user.patient.adherence_summary()
+        adherence_percentage = user.patient.adherence_summary().get("adherence_percentage", None)
+
+        # Number of active prescriptions under patient
+        num_active_prescriptions = Prescription.objects.filter(
+            Q(patient=user.patient) &
+            Q(end_date__gte=today)
+        ).distinct().count()
         summary = {
             "today_meds": logs.count(),
             "missed_this_week": missed_count,
-            "active_prescriptions": active_prescriptions.count(),
-            "overall_adherence": overall_adhenrence,
+            "active_prescriptions": num_active_prescriptions,
+            "adherence_percentage": adherence_percentage,
         }
 
         # User Info
@@ -1289,13 +1300,102 @@ class PatientDashboardAPIView(views.APIView):
         )
 
 
-# class HospitalDashboardAPIView(views.APIView):
-#     """
-#     Hospital Dashboard:
-#     - Summary (Total patients, Active Prescriptions, Total Doctors )
-#     - Patient information
-#     - Prescription information
-#     """
+class HospitalDashboardAPIView(views.APIView):
+    """
+    Hospital Dashboard:
+    - Summary (Total patients, Active Prescriptions, Total Doctors )
+    - Patient information
+    - Prescription information
+    """
+
+    permission_classes = [IsAuthenticated, IsHospital]
+
+    @swagger_auto_schema(
+        tags=["Dashboard"],
+        operation_summary="Hospital dashboard",
+    )
+
+    def get(self, request):
+        hospital = request.user.hospital
+        today = date.today()
+
+        # Hospital Info
+        hospital_data = {
+            "hospital_id": hospital.hospital_id,
+            "hospital_name": hospital.name,
+        }
+
+
+        # Patient Data
+        patients_qs = Patient.objects.filter(hospital=hospital)
+
+        patients_data = AdminPatientListSerializer(patients_qs, many=True).data
+
+        total_num_patients = len(patients_data)
+
+        overall_patients_adherence = hospital.adherence_summary().get("adherence_percentage", None)
+
+        # Doctor data
+        doctors_qs = Doctor.objects.filter(hospital=hospital)
+        doctors_data = AdminDoctorListSerializer(doctors_qs, many=True).data
+        total_num_doctors = len(doctors_data)
+
+        # Numbbere of Active prescriptions under Hospital
+        num_active_prescriptions = Prescription.objects.filter(
+            Q(patient__hospital=hospital) &
+            Q(end_date__gte=today)
+        ).distinct().count()
+
+
+        start_of_week = today - timedelta(days=today.weekday())
+        logs_this_week = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__doctor__hospital=hospital,
+            date__gte=start_of_week,
+            date__lte=today,
+        )
+        weekly_missed_count = sum(
+            1 for log in logs_this_week if log.get_status() == "missed"
+        )
+
+        logs_today = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__doctor__hospital=hospital,
+            date=today,
+        )
+        daily_missed_count = sum(
+            1 for log in logs_today if log.get_status() == "missed"
+        )
+
+        summary = {
+            "total_num_patients": total_num_patients,
+            "total_num_doctors": total_num_doctors,
+            "overall_patients_adherence": overall_patients_adherence,
+            "today_meds": logs_today.count(),
+            "missed_today": daily_missed_count,
+            "missed_this_week": weekly_missed_count,
+            "active_prescriptions": num_active_prescriptions,
+        }
+
+
+        # Get each Prescrition under doctor supervision
+        active_drugs = PrescriptionDrug.objects.filter(prescription__doctor__hospital=hospital)
+
+        # Serialize prescriptions with progress
+        active_prescriptions_data = DoctorActivePrescriptionSerializer(
+            active_drugs, many=True
+        ).data
+
+        return Response(
+            {
+                "hospital": hospital_data,
+                "today_date": today,
+                "summary": summary,
+                "patients": patients_data,
+                "doctors": doctors_data,
+                "prescriptions": active_prescriptions_data, 
+                
+            }
+        )
+
 
 class MarkLogTakenAPIView(views.APIView):
     """

@@ -20,6 +20,7 @@ from .views import (  # DoctorSignUpView,
     PatientSignUpView,
     SignUpOTPResendView,
     SignUpOTPverificationView,
+    HospitalDashboardAPIView,
 )
 
 urlpatterns = [
@@ -55,6 +56,11 @@ urlpatterns = [
         "v1/doctor/onboarding/",
         DoctorOnboardingAPIView.as_view(),
         name="doctor-onboarding",
+    ),
+    path(
+        "v1/hospital/dashboard/",
+        HospitalDashboardAPIView.as_view(),
+        name="hospital-dashboard",
     ),
     path("v1/hospital/signup/", HospitalSignUpView.as_view(), name="hospital-signup"),
     path(
