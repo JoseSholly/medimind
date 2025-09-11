@@ -822,15 +822,22 @@ class AdminPatientListSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     gender = serializers.CharField(source="user.gender")
     age = serializers.CharField(source="user.age")
+    adherence_percentage = serializers.SerializerMethodField()
 
     class Meta:
         model = Patient
-        fields = ["patient_id", "patient_name", "gender", "age", "medical_history"]
+        fields = ["patient_id", "patient_name", "gender", "age", "medical_history", "adherence_percentage"]
 
     def get_patient_name(self, obj):
         if obj.user:
             return obj.user.get_full_name()
         return None
+    
+    def get_adherence_percentage(self, obj):
+        if obj.user:
+            result = obj.user.patient.adherence_summary()
+            adherence_percentage = result.get("adherence_percentage", None)
+        return adherence_percentage
 
 
 class PrescriptionLogSerializer(serializers.ModelSerializer):

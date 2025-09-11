@@ -1289,6 +1289,14 @@ class PatientDashboardAPIView(views.APIView):
         )
 
 
+# class HospitalDashboardAPIView(views.APIView):
+#     """
+#     Hospital Dashboard:
+#     - Summary (Total patients, Active Prescriptions, Total Doctors )
+#     - Patient information
+#     - Prescription information
+#     """
+
 class MarkLogTakenAPIView(views.APIView):
     """
     Patient marks a prescription log as taken.
