@@ -1,7 +1,8 @@
-from rest_framework import serializers
-from users.models import Patient
+from datetime import timedelta
 
 from medications.models import Prescription, PrescriptionDrug
+from rest_framework import serializers
+from users.models import Patient
 
 
 class PrescriptionDrugSerializer(serializers.ModelSerializer):
@@ -69,3 +70,66 @@ class PrescriptionCreateSerializer(serializers.ModelSerializer):
             
 
         return prescription
+
+
+class PrescriptionDrugTimelineSerializer(serializers.ModelSerializer):
+    timeline = serializers.SerializerMethodField()
+    daily_times = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PrescriptionDrug
+        fields = [
+            "drug_id",
+            "drug_name",
+            "dosage_instruction",
+            "frequency_per_day",
+            "duration_days",
+            "daily_times",
+            "timeline", 
+        ]
+
+    def get_daily_times(self, obj):
+        return obj.get_daily_times()
+
+    def get_timeline(self, obj):
+        timeline = []
+        start_date = obj.prescription.start_date
+        logs = { (log.date.strftime("%Y-%m-%d"), log.scheduled_time.strftime("%H:%M")): log
+                 for log in obj.logs.all() }  # map logs by date+time
+
+        for day in range(obj.duration_days):
+            current_date = start_date + timedelta(days=day)
+            current_date_str = current_date.strftime("%Y-%m-%d")
+            doses = []
+
+            for t in obj.get_daily_times():
+                log = logs.get((current_date_str, t))
+                doses.append({
+                    "time": t,
+                    "taken": log.taken if log else False,
+                    "status": log.get_status() if log else "pending",
+                })
+
+            timeline.append({
+                "day": f"Day {day + 1}",
+                "date": current_date_str,
+                "doses": doses
+            })
+
+        return timeline
+
+class PrescriptionDetailSerializer(serializers.ModelSerializer):
+    doctor = serializers.CharField(source="doctor.user.get_full_name")
+    patient = serializers.CharField(source="patient.user.get_full_name")
+    drugs = PrescriptionDrugTimelineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Prescription
+        fields = [
+            "prescription_id",
+            "doctor",
+            "patient",
+            "start_date",
+            "end_date",
+            "drugs",
+        ]
