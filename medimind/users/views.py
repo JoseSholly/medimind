@@ -1171,15 +1171,18 @@ class DoctorDashboardAPIView(views.APIView):
 
         patients_data = AdminPatientListSerializer(patients_qs, many=True).data
 
-        total_num_patients = len(patients_data) 
+        total_num_patients = len(patients_data)
+
+
+        overall_patients_adherence = user.doctor.adherence_summary()
 
         summary = {
             "total_num_patients": total_num_patients,
+            "overall_patients_adherence": overall_patients_adherence,
             "today_meds": logs.count(),
             "missed_today": daily_missed_count,
             "missed_this_week": weekly_missed_count,
             "active_prescriptions": active_prescriptions.count(),
-            
         }
 
         # User Info
@@ -1194,7 +1197,7 @@ class DoctorDashboardAPIView(views.APIView):
                 "user": user_data,
                 "today_date": today,
                 "summary": summary,
-                "patients" : patients_data,
+                "patients": patients_data,
                 "active_prescriptions": active_prescriptions_data,
             }
         )
@@ -1259,10 +1262,12 @@ class PatientDashboardAPIView(views.APIView):
 
         missed_count = sum(1 for log in logs_this_week if log.get_status() == "missed")
 
+        overall_adhenrence = user.patient.adherence_summary()
         summary = {
             "today_meds": logs.count(),
             "missed_this_week": missed_count,
             "active_prescriptions": active_prescriptions.count(),
+            "overall_adherence": overall_adhenrence,
         }
 
         # User Info

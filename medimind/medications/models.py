@@ -209,6 +209,7 @@ class PrescriptionDrug(TimestampMixin, models.Model):
 
 
 class PrescriptionLog(TimestampMixin, models.Model):
+    
     log_id = models.CharField(
         max_length=15,
         unique=True,

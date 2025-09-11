@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, models, transaction
 from django.utils.translation import gettext as _
+from medications.utils import calculate_adherence
 from users.mixins import TimestampMixin
 from users.password_generator import IDGenerator
 
@@ -43,4 +44,14 @@ class Hospital(TimestampMixin, models.Model):
             raise ValueError("Could not generate unique Hospital ID after maximum attempts")
         
         # If the ID already exists, proceed with a standard save (update)
-        super().save(*args, **kwargs)       
+        super().save(*args, **kwargs) 
+
+
+    def adherence_summary(self):
+        from medications.models import PrescriptionLog
+
+        logs = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__patient__hospital=self
+        )
+
+        return calculate_adherence(logs)

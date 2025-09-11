@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from medications.utils import calculate_adherence
 
 from .exceptions import ExistingLicenseError
 from .field_choices import GENDER, SPECIALIZATION_CHOICES
@@ -21,17 +22,19 @@ from .password_generator import IDGenerator
 from .validators import validate_gender, validate_specialization
 
 USER_TYPES = (
-        ("patient", _("Patient")),
-        ("doctor", _("Doctor")),
-        ("hospital", _("Hospital")),
-        ("admin", _("Admin")),
-    )
+    ("patient", _("Patient")),
+    ("doctor", _("Doctor")),
+    ("hospital", _("Hospital")),
+    ("admin", _("Admin")),
+)
 
 PURPOSE_CHOICES = (
-        ("email_verification", "Email Verification"),
-        ("password_reset", "Password Reset"),
-        ("2fa", "Two-Factor Authentication"),
-    )
+    ("email_verification", "Email Verification"),
+    ("password_reset", "Password Reset"),
+    ("2fa", "Two-Factor Authentication"),
+)
+
+
 class User(AbstractBaseUser, PermissionsMixin):
     user_type = models.CharField(
         max_length=20,
@@ -41,30 +44,30 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     username = None
     email = models.EmailField(unique=True)
-    user_id = models.UUIDField(
-        default = uuid.uuid4,
-        editable = False)
+    user_id = models.UUIDField(default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     age = models.PositiveIntegerField(null=True, blank=True)
-    gender = models.CharField(max_length=10, blank=True, choices=GENDER, validators=[validate_gender])
-    
-    date_joined = models.DateTimeField(default=timezone.now)
-    is_active   = models.BooleanField(default=True)
-    is_staff    = models.BooleanField(default=False)
-    is_activated = models.BooleanField(
-        default=False,
-        help_text=_("Indicates whether the user has activated their account.")
+    gender = models.CharField(
+        max_length=10, blank=True, choices=GENDER, validators=[validate_gender]
     )
 
-    USERNAME_FIELD = 'email'
+    date_joined = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    is_activated = models.BooleanField(
+        default=False,
+        help_text=_("Indicates whether the user has activated their account."),
+    )
+
+    USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
 
     class Meta:
         indexes = [
-            models.Index(fields=['user_id']),
+            models.Index(fields=["user_id"]),
         ]
 
     def __str__(self):
@@ -74,29 +77,30 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.first_name} {self.last_name}".strip()
 
     def get_short_name(self):
-        return self.first_name or (self.email.split('@')[0] if self.email else "")
+        return self.first_name or (self.email.split("@")[0] if self.email else "")
 
     @property
     def is_doctor(self):
-        return hasattr(self, 'doctor')
+        return hasattr(self, "doctor")
 
     @property
     def is_patient(self):
-        return hasattr(self, 'patient')
-    
+        return hasattr(self, "patient")
+
     @property
     def is_hospital(self):
-        return hasattr(self, 'hospital')
+        return hasattr(self, "hospital")
+
 
 class Doctor(TimestampMixin, models.Model):
     hospital = models.ForeignKey(
         "hospitals.Hospital",
         on_delete=models.CASCADE,
-        related_name='doctors',
+        related_name="doctors",
         null=True,
         blank=True,
         verbose_name=_("Hospital"),
-        help_text=_("The hospital this doctor belongs to.")
+        help_text=_("The hospital this doctor belongs to."),
     )
     doctor_id = models.CharField(
         max_length=13,  # e.g. DOC-XXXXXXXX
@@ -105,30 +109,35 @@ class Doctor(TimestampMixin, models.Model):
         null=True,
         blank=True,
         db_index=True,
-        help_text=_("Unique doctor ID in format DOC-XXXXXXXX")
+        help_text=_("Unique doctor ID in format DOC-XXXXXXXX"),
     )
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name='doctor'
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="doctor")
     specialization = ArrayField(
-        models.CharField(max_length=100,choices=SPECIALIZATION_CHOICES, ),
-        blank=True, default=list,
-        help_text=_("List of specializations for the doctor. Use field choices from field_choices.py."), 
-        validators=[validate_specialization]
+        models.CharField(
+            max_length=100,
+            choices=SPECIALIZATION_CHOICES,
+        ),
+        blank=True,
+        default=list,
+        help_text=_(
+            "List of specializations for the doctor. Use field choices from field_choices.py."
+        ),
+        validators=[validate_specialization],
     )
     license_number = models.CharField(
-        max_length=100, unique=True,
+        max_length=100,
+        unique=True,
         null=True,
         blank=True,
-        help_text=_("Unique license number of the doctor.")
+        help_text=_("Unique license number of the doctor."),
     )
 
     objects = TenantAwareManager()
 
     class Meta:
         indexes = [
-            models.Index(fields=['license_number']),
-            models.Index(fields=['doctor_id']),
+            models.Index(fields=["license_number"]),
+            models.Index(fields=["doctor_id"]),
         ]
 
     def __str__(self):
@@ -142,11 +151,8 @@ class Doctor(TimestampMixin, models.Model):
 
         if not self.hospital_id:
             raise ValidationError(_("Doctor must belong to a hospital."))
-        
 
-    
     def save(self, *args, **kwargs):
-
         self.user.user_type = "doctor"
         # Run model validation first (also runs field validators)
         self.full_clean()
@@ -169,8 +175,8 @@ class Doctor(TimestampMixin, models.Model):
                 # If collision is on doctor_id, retry with a new one; otherwise re-raise
                 # (DB error messages vary; check both field names)
                 msg = str(e).lower()
-                collided_id = 'doctor_id' in msg
-                collided_license = 'license' in msg and 'unique' in msg
+                collided_id = "doctor_id" in msg
+                collided_license = "license" in msg and "unique" in msg
                 if collided_id and attempt < MAX_ATTEMPTS:
                     # regenerate and retry
                     self.doctor_id = None
@@ -181,17 +187,25 @@ class Doctor(TimestampMixin, models.Model):
                 # Unknown integrity issue
                 raise
 
+    def adherence_summary(self):
+        from medications.models import PrescriptionLog
+
+        logs = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__doctor=self
+        )
+
+        return calculate_adherence(logs)
 
 
 class Patient(TimestampMixin, models.Model):
     hospital = models.ForeignKey(
         "hospitals.Hospital",
         on_delete=models.CASCADE,
-        related_name='hosiptal_patient',
+        related_name="hosiptal_patient",
         null=True,
         blank=True,
         verbose_name=_("Hospital"),
-        help_text=_("The hospital this doctor belongs to.")
+        help_text=_("The hospital this doctor belongs to."),
     )
     patient_id = models.CharField(
         max_length=13,  # e.g. PAT-XXXXXXXX
@@ -200,31 +214,32 @@ class Patient(TimestampMixin, models.Model):
         null=True,
         blank=True,
         db_index=True,
-        help_text=_("Unique patient ID in format PAT-XXXXXXXX")
+        help_text=_("Unique patient ID in format PAT-XXXXXXXX"),
     )
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name='patient'
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="patient")
     medical_history = models.TextField(blank=True)
     assigned_doctor = models.ForeignKey(
-        Doctor, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='patients',
-        help_text=_("Doctor assigned to this patient.")
+        Doctor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="patients",
+        help_text=_("Doctor assigned to this patient."),
     )
 
     objects = TenantAwareManager()
 
     class Meta:
         indexes = [
-            models.Index(fields=['patient_id']),
+            models.Index(fields=["patient_id"]),
         ]
 
     def __str__(self):
         return f"Patient: {self.user.get_full_name()}--{self.hospital or '—'})"
-    
+
     def get_full_name(self):
         return self.user.get_full_name()
-    
+
     def clean(self):
         super().clean()
 
@@ -235,8 +250,13 @@ class Patient(TimestampMixin, models.Model):
             raise ValidationError(_("Patient must belong to a hospital."))
 
         # If assigned doctor exists, enforce same hospital
-        if self.assigned_doctor_id and self.assigned_doctor.hospital_id != self.hospital_id:
-            raise ValidationError(_("Assigned doctor must belong to the same hospital as the patient."))
+        if (
+            self.assigned_doctor_id
+            and self.assigned_doctor.hospital_id != self.hospital_id
+        ):
+            raise ValidationError(
+                _("Assigned doctor must belong to the same hospital as the patient.")
+            )
 
     def save(self, *args, **kwargs):
         self.user.user_type = "patient"
@@ -259,7 +279,7 @@ class Patient(TimestampMixin, models.Model):
                     return super().save(*args, **kwargs)
             except IntegrityError as e:
                 msg = str(e).lower()
-                collided_id = 'patient_id' in msg
+                collided_id = "patient_id" in msg
                 if collided_id and attempt < MAX_ATTEMPTS:
                     # regenerate and retry
                     self.patient_id = None
@@ -267,6 +287,14 @@ class Patient(TimestampMixin, models.Model):
                 # Unknown integrity issue
                 raise
 
+    def adherence_summary(self):
+        from medications.models import PrescriptionLog
+
+        logs = PrescriptionLog.objects.filter(
+            prescription_drug__prescription__patient=self
+        )
+
+        return calculate_adherence(logs)
 
 
 class OTP(models.Model):
@@ -290,7 +318,9 @@ class OTP(models.Model):
         verbose_name = "OTP"
 
     def is_expired(self, validity_minutes=10):
-        return timezone.now() > self.created_at + timezone.timedelta(minutes=validity_minutes)
+        return timezone.now() > self.created_at + timezone.timedelta(
+            minutes=validity_minutes
+        )
 
     def verify_otp(self, raw_code):
         """
@@ -307,11 +337,9 @@ class SessionToken(TimestampMixin, models.Model):
     Stores a temporary session token that authorizes user.
     This token is single-use and time-limited.
     """
+
     user = models.ForeignKey("users.User", on_delete=models.CASCADE)
-    token = models.UUIDField(
-        default = uuid.uuid1,
-        editable = False,
-        unique=True)
+    token = models.UUIDField(default=uuid.uuid1, editable=False, unique=True)
     purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES)
     expires_at = models.DateTimeField(default=None)
     is_used = models.BooleanField(default=False)
@@ -321,7 +349,7 @@ class SessionToken(TimestampMixin, models.Model):
     def is_valid(self):
         """Checks if the session token is still valid (not expired and not yet used)."""
         return not self.is_used and self.expires_at > timezone.now()
-    
+
     def is_expired(self):
         return timezone.now() > self.expires_at
 
