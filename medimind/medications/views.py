@@ -132,7 +132,7 @@ class ReminderCheckAPIView(APIView):
 
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         logs = check_missed_logs()
         logger.info(f"Reminder check for {len(logs)} logs")
         print(f"Reminder check for {len(logs)} logs")
