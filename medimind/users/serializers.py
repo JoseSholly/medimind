@@ -443,14 +443,15 @@ class PatientOnboardingSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"hospital_id": "No hospitals available to assign."}
                 )
-
+        # Assign random doctor 
+        assigned_doctor = Doctor.objects.filter(hospital=hospital).order_by('?').first()
         # Create patient profile
         try:
             patient = Patient.objects.create(
                 user=user,
                 hospital=hospital if hospital else None,
                 medical_history=validated_data.get("medical_history", ""),
-                assigned_doctor=None,  # assigned later by hospital
+                assigned_doctor=assigned_doctor,  # assign doctor randomly
             )
         except IntegrityError:
             raise IntegrityError("User already has a patient profile.")
