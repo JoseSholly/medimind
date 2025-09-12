@@ -1,4 +1,4 @@
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -244,7 +244,7 @@ class PrescriptionLog(TimestampMixin, models.Model):
             raise ValueError("Invalid log: date and scheduled_time required.")
 
         # Current timezone-aware datetime
-        now = timezone.localtime()
+        now = timezone.localtime(timezone.now())
         scheduled_dt = timezone.make_aware(
             timezone.datetime.combine(self.date, self.scheduled_time)
         )
@@ -257,7 +257,7 @@ class PrescriptionLog(TimestampMixin, models.Model):
             return "pending"
 
         # Within 1-hour grace period → "ready"
-        if scheduled_dt <= now <= scheduled_dt + timezone.timedelta(hours=1):
+        if scheduled_dt <= now <= scheduled_dt + timezone.timedelta(hours=2):
             return "due"
 
         # Beyond 1-hour grace → missed
