@@ -1,15 +1,23 @@
+import logging
+
 from drf_yasg.utils import swagger_auto_schema
-from medications.serializers import (
-    PrescriptionCreateSerializer,
-    PrescriptionDetailSerializer,
-    PrescriptionDrugTimelineSerializer,
-)
+from notifications.utils import send_prescription_notification
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from medications.serializers import (
+    PrescriptionCreateSerializer,
+    PrescriptionDetailSerializer,
+    PrescriptionDrugTimelineSerializer,
+)
+
+from datetime import datetime
+
 from .models import Prescription
+
+logger = logging.getLogger(__name__)
 
 
 class PrescriptionCreateAPIView(APIView):
@@ -18,7 +26,6 @@ class PrescriptionCreateAPIView(APIView):
     """
 
     permission_classes = [permissions.IsAuthenticated]
-
 
     @swagger_auto_schema(
         tags=["Prescription"],
@@ -34,20 +41,56 @@ class PrescriptionCreateAPIView(APIView):
             )
 
         serializer = PrescriptionCreateSerializer(
-            data=request.data,
-            context={"request": request}  
+            data=request.data, context={"request": request}
         )
 
         if serializer.is_valid():
             prescription = serializer.save()
+
+            # Notify patient via WhatsApp
+            patient_name = prescription.patient.user.get_full_name()
+            doctor_name = request.user.get_full_name()
+            start_date = prescription.start_date
+            drugs_data = []
+            for drug in prescription.drugs.all():
+                daily_times_24h = drug.get_daily_times()
+                daily_times_12h = []
+                for time_str in daily_times_24h:
+                    # Parse the 24-hour time string
+                    time_obj = datetime.strptime(time_str, "%H:%M")
+                    # Format to 12-hour string with AM/PM
+                    daily_times_12h.append(time_obj.strftime("%I:%M %p"))
+
+                drugs_data.append(
+                    {
+                        "drug_name": drug.drug_name,
+                        "dosage_instruction": drug.dosage_instruction,
+                        "frequency_per_day": drug.frequency_per_day,
+                        "duration_days": drug.duration_days,
+                        "daily_times": daily_times_12h,
+                        # Convert date objects to a string format for readability
+                        "start_date": start_date.strftime("%B %d, %Y"),
+                        "end_date": drug.get_end_date().strftime("%B %d, %Y"),
+                    }
+                )
+
+            try:
+                send_prescription_notification(
+                    phone_number="+2348177249074",
+                    patient_name=patient_name,
+                    doctor_name=doctor_name,
+                    drugs=drugs_data,
+                )
+            except Exception as e:
+                logger.warning(f"WhatsApp notification failed: {e}")
+
             data = PrescriptionCreateSerializer(prescription).data
             return Response(
                 {
                     "status": "sucesss",
                     "message": "Prescription created sucessfully",
-                    "data": data
-                }
-                ,
+                    "data": data,
+                },
                 status=status.HTTP_201_CREATED,
             )
 
@@ -78,4 +121,3 @@ class PrescriptionDetailView(generics.RetrieveAPIView):
             del data["drugs"]
 
         return Response(data)
-

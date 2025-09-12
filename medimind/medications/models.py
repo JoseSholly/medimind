@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import time, timedelta
 
 from django.core.validators import MinValueValidator
 from django.db import models
