@@ -1,8 +1,10 @@
+import os
+
 from django.utils import timezone
 from notifications.utils import send_missed_logs_notification
 
 from .models import PrescriptionLog
-
+RECIPIENT_NUMBERS = os.getenv("RECIPIENT_NUMBERS").split(",")
 
 def check_missed_logs():
     """
@@ -27,16 +29,13 @@ def check_missed_logs():
             if now > scheduled_dt + timezone.timedelta(hours=1):
                 patient = log.prescription_drug.prescription.patient
                 user = patient.user
-                phone_number = "+2348177249074"
                 user_full_name = user.get_full_name()
                 drug_name = log.prescription_drug.drug_name
                 scheduled_time_12h = log.scheduled_time.strftime("%I:%M %p")
-
-                
-
-                sent = send_missed_logs_notification(
-                    phone_number, user_full_name, drug_name, scheduled_time_12h
-                )
+                for recipient in RECIPIENT_NUMBERS:
+                    sent = send_missed_logs_notification(
+                        phone_number=recipient, user_full_name=user_full_name, drug_name=drug_name, scheduled_time_12h=scheduled_time_12h
+                    )
 
                 if sent:
                     log.notified = True

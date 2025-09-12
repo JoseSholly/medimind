@@ -3,6 +3,10 @@ import os
 from twilio.rest import Client
 
 
+
+RECIPIENT_NUMBERS = os.getenv("RECIPIENT_NUMBERS").split(",")
+
+
 def send_prescription_notification(
     phone_number: str,
     patient_name: str,
@@ -46,12 +50,12 @@ def send_prescription_notification(
         f"✅ Please follow these instructions carefully.\n"
         f"Stay healthy, Medimind cares for you ❤️"
     )
-
-    return client.messages.create(
-        body=message_body,
-        from_=os.getenv("TWILIO_WHATSAPP_FROM"),
-        to=f"whatsapp:{phone_number}",
-    )
+    for phone in RECIPIENT_NUMBERS:
+        client.messages.create(
+            body=message_body,
+            from_=os.getenv("TWILIO_WHATSAPP_FROM"),
+            to=phone,
+        )
 
 
 def send_missed_logs_notification(phone_number, user_full_name, drug_name, scheduled_time_12h):
@@ -80,7 +84,7 @@ def send_missed_logs_notification(phone_number, user_full_name, drug_name, sched
         client.messages.create(
             body=message_body,
             from_=sender,
-            to=f"whatsapp:{phone_number}",
+            to=phone_number,
         )
         return True
     except Exception as e:
