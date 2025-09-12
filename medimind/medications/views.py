@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from drf_yasg.utils import swagger_auto_schema
 from notifications.utils import send_prescription_notification
@@ -13,9 +14,8 @@ from medications.serializers import (
     PrescriptionDrugTimelineSerializer,
 )
 
-from datetime import datetime
-
 from .models import Prescription
+from .services import check_missed_logs
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +121,28 @@ class PrescriptionDetailView(generics.RetrieveAPIView):
             del data["drugs"]
 
         return Response(data)
+
+ 
+
+
+class ReminderCheckAPIView(APIView):
+    """
+    Trigger a check for missed logs and send reminders.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        logs = check_missed_logs()
+        if len(logs)>0:
+            return Response({
+                "status": "sucess",
+                "reminders_sent": len(logs),
+                "log_ids": [log.log_id for log in logs],
+            })
+        return Response({
+            "status": "success",
+            "reminders_sent": len(logs),
+            "message": "No missed"
+            
+        })

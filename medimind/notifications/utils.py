@@ -52,3 +52,37 @@ def send_prescription_notification(
         from_=os.getenv("TWILIO_WHATSAPP_FROM"),
         to=f"whatsapp:{phone_number}",
     )
+
+
+def send_missed_logs_notification(phone_number, user_full_name, drug_name, scheduled_time_12h):
+    """
+    Send WhatsApp reminder for a missed medication log.
+    """
+    if not phone_number:
+        return False
+
+    # Twilio setup
+    client = Client(
+        os.getenv("TWILIO_ACCOUNT_SID"),
+        os.getenv("TWILIO_AUTH_TOKEN")
+    )
+    sender=os.getenv("TWILIO_WHATSAPP_FROM"),
+
+    
+
+    message_body = (
+        f"Hello {user_full_name},\n\n"
+        f"You missed your medication: *{drug_name}* scheduled at {scheduled_time_12h}.\n\n"
+        "Please take your dose as soon as possible or mark it in the app."
+    )
+
+    try:
+        client.messages.create(
+            body=message_body,
+            from_=sender,
+            to=f"whatsapp:{phone_number}",
+        )
+        return True
+    except Exception as e:
+        print(f"WhatsApp reminder failed for {user_full_name}: {e}")
+        return False

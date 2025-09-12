@@ -1,6 +1,10 @@
 from django.urls import path
 
-from .views import PrescriptionCreateAPIView, PrescriptionDetailView
+from .views import (
+    PrescriptionCreateAPIView,
+    PrescriptionDetailView,
+    ReminderCheckAPIView,
+)
 
 urlpatterns = [
     path(
@@ -13,4 +17,6 @@ urlpatterns = [
         PrescriptionDetailView.as_view(),
         name="prescription-detail",
     ),
+    path("v1/reminders/check/", ReminderCheckAPIView.as_view(), name="reminder-check")
+
 ]

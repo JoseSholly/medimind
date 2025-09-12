@@ -100,7 +100,10 @@ class PrescriptionDrug(TimestampMixin, models.Model):
         End date is inclusive (last day patient should take the drug).
         """
         if not self.prescription.start_date:
-            return None
+            return "invalid"
+        
+        if not self.duration_days:
+            return "invalid"
         return self.prescription.start_date + timedelta(days=self.duration_days - 1)
 
     @property
@@ -235,6 +238,11 @@ class PrescriptionLog(TimestampMixin, models.Model):
         null=True, blank=True, help_text=_("Timestamp when patient marked as taken.")
     )
 
+    notified = models.BooleanField(
+        default=False,
+        help_text=_("Whether a missed reminder has been sent for this dose."),
+    )
+
     def __str__(self):
         status = "taken" if self.taken else "Not Taken"
         return f"{self.prescription_drug.drug_name} - {self.date} ({status})"
@@ -257,7 +265,7 @@ class PrescriptionLog(TimestampMixin, models.Model):
             return "pending"
 
         # Within 1-hour grace period → "ready"
-        if scheduled_dt <= now <= scheduled_dt + timezone.timedelta(hours=2):
+        if scheduled_dt <= now <= scheduled_dt + timezone.timedelta(hours=1):
             return "due"
 
         # Beyond 1-hour grace → missed
