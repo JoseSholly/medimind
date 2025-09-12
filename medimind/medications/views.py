@@ -134,6 +134,8 @@ class ReminderCheckAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
         logs = check_missed_logs()
+        logger.info(f"Reminder check for {len(logs)} logs")
+        print(f"Reminder check for {len(logs)} logs")
         if len(logs)>0:
             return Response({
                 "status": "sucess",
