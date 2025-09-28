@@ -98,13 +98,16 @@ SIMPLE_JWT = {
 
 
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"  # Use your email provider's SMTP server
-EMAIL_PORT = 587  # Use 465 for SSL, 587 for TLS
-EMAIL_USE_TLS = True  # Set to False if using SSL (465)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", cast=str)  # Your email address
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", cast=str)  # App password (not your real password)
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", cast=str)
+
+
+EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
+
+ANYMAIL = {
+    "MAILGUN_API_KEY": config("MAILGUN_API_KEY", cast=str),
+    "MAILGUN_SENDER_DOMAIN": config("MAILGUN_DOMAIN_NAME", cast=str),
+}
+
+DEFAULT_FROM_EMAIL = "Medimind <no-reply@mg.medimind.com>"
 
 
 LOG_LEVEL = "DEBUG" if DEBUG else "INFO"

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Missed Dosage Notification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9fafb;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 20px 30px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #2a9d8f;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #333;
+      line-height: 1.5;
+    }
+    .button {
+      display: inline-block;
+      background: #2a9d8f;
+      color: #ffffff;
+      padding: 10px 20px;
+      margin-top: 20px;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .footer {
+      font-size: 12px;
+      color: #777;
+      margin-top: 20px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Missed Dosage Alert 🚨</h2>
+    <p>Dear {{ patient_name }},</p>
+    <p>
+      Our records show that you <strong>missed your scheduled dosage</strong> for:
+    </p>
+    <p><strong>Medication:</strong> {{ medication_name }}</p>
+    <p><strong>Scheduled Time:</strong> {{ scheduled_time }}</p>
+    <p>
+      Please take the necessary steps to ensure your treatment stays on track.
+    </p>
+    <div class="footer">
+      <p>Medimind – Helping you stay on track with your prescriptions 💊</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -42,3 +42,4 @@ uritemplate==4.2.0
 urllib3==2.5.0
 whitenoise==6.9.0
 yarl==1.20.1
+django-anymail==13.1

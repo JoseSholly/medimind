@@ -1,8 +1,7 @@
 import os
 
 from twilio.rest import Client
-
-
+from users.utils import send_email
 
 RECIPIENT_NUMBERS = os.getenv("RECIPIENT_NUMBERS").split(",")
 
@@ -89,4 +88,42 @@ def send_missed_logs_notification(phone_number, user_full_name, drug_name, sched
         return True
     except Exception as e:
         print(f"WhatsApp reminder failed for {user_full_name}: {e}")
+        return False
+    
+
+def send_prescription_notice_via_mail(doctor_name, patient_email, patient_name, drugs_data):
+    """
+    Send an email notification to the patient about a new prescription."""
+    send_email(
+                    subject=f"Your Prescription from Dr. {doctor_name}",
+                    template_name="notification/prescription_notice.html",
+                    recipient_list=[patient_email],
+                    context={
+                        "patient_name": patient_name,
+                        "doctor_name": doctor_name,
+                        "drugs": drugs_data,
+                    },
+                )
+
+
+def send_missed_logs_notification_via_mail(user_email, user_full_name, drug_name, scheduled_time_12h):
+    """
+    Sends a missed dosage notification email to the user.
+    Returns True if successful, False otherwise.
+    """
+    subject = f"Missed Dosage Notice for {drug_name}"
+    template_name = "notification/missed_dosage.html"
+    recipient_list = [user_email]
+
+    context = {
+        "patient_name": user_full_name,
+        "medication_name": drug_name,
+        "scheduled_time": scheduled_time_12h,
+    }
+
+    try:
+        send_email(subject, template_name, recipient_list, context)
+        return True
+    except Exception as e:
+        print(f"Failed to send missed log email to {user_email}: {e}")
         return False

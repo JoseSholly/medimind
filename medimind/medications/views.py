@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 from drf_yasg.utils import swagger_auto_schema
-from notifications.utils import send_prescription_notification
+from notifications.utils import send_prescription_notice_via_mail
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -75,14 +75,14 @@ class PrescriptionCreateAPIView(APIView):
                 )
 
             try:
-                send_prescription_notification(
-                    phone_number="+2348177249074",
+                send_prescription_notice_via_mail(
+                    patient_email= prescription.patient.user.email,
                     patient_name=patient_name,
                     doctor_name=doctor_name,
-                    drugs=drugs_data,
+                    drugs_data=drugs_data,
                 )
             except Exception as e:
-                logger.warning(f"WhatsApp notification failed: {e}")
+                logger.warning(f"Prescription mail notification failed: {e}")
 
             data = PrescriptionCreateSerializer(prescription).data
             return Response(
