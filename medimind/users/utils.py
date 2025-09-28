@@ -64,7 +64,7 @@ def send_onboarding_welcome(email):
         "current_year": datetime.now().year,
     }
     return send_email(
-        subject="Welcome to NuwellAI!",
+        subject="Welcome to Nedimind!",
         template_name="onboarding/onboarding_welcome.html",
         recipient_list=[email],
         context=context,
