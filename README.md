@@ -1,6 +1,6 @@
-# Medimind
+# SmartRemii
 
-Medimind is a Django-based healthcare management system designed to streamline appointments, medication adherence, notifications, and hospital management.
+SmartRemii is a Django-based healthcare management system designed to streamline appointments, medication adherence, notifications, and hospital management.
 
 ## Project Structure
 
@@ -24,7 +24,7 @@ Medimind is a Django-based healthcare management system designed to streamline a
 
 1. Clone the repository:
     ```sh
-    git clone <repository-url>
+    git clone https://github.com/JoseSholly/medimind.git
     cd medimind
     ```
 
